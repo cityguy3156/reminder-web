@@ -1,0 +1,671 @@
+/* =========================
+   GLOBAL RESET
+========================= */
+
+* {
+  box-sizing: border-box;
+}
+#app {
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  max-width: none;
+}
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: #0b1220;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* =========================
+   ROOT APP CONTAINER
+========================= */
+
+#appRoot {
+  position: fixed;
+  overflow: hidden;
+}
+
+/* =========================
+   BACKGROUND CANVAS
+========================= */
+
+canvas#stimulus {
+  position: fixed;
+  /* inset: 0; */
+  width: 100vw;
+  height: 100vh;
+  display: block;
+  z-index: 0;
+}
+
+/* =========================
+   OVERLAY LAYERS
+========================= */
+
+#hud,
+#controls,
+#gateBanner,
+#homePanel,
+#sightsPanel,
+#soundsPanel {
+  position: absolute;
+  z-index: 10;
+}
+
+/* =========================
+   HUD (top-left)
+========================= */
+
+#hud {
+  position: fixed;
+  left: 12px;
+  top: 12px;
+  padding: 12px 16px;
+
+  background: rgba(0, 0, 0, 0.85);
+  color: #00ff88;              /* bright neon green */
+
+  border: 2px solid #00ff88;
+  border-radius: 14px;
+
+  font-size: 14px;
+  font-weight: 700;
+
+  text-shadow: 0 0 6px #00ff88;
+  white-space: pre-wrap;
+  z-index: 50;
+}
+
+/* =========================
+   CONTROLS (top-right)
+========================= */
+
+#controls {
+  right: 14px;
+  top: 14px;
+  display: flex;
+  gap: 10px;
+}
+
+#controls button {
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(0,0,0,0.4);
+  color: white;
+  cursor: pointer;
+}
+
+#controls button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* =========================
+   HOME MENU (centered)
+========================= */
+
+
+
+#homePanel button {
+  width: 220px;
+  height: 220px;
+  font-size: 24px;
+  font-weight: 900;
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(46,160,67,0.35);
+  color: white;
+  cursor: pointer;
+}
+
+#homePanel button:hover {
+  filter: brightness(1.08);
+}
+
+/* =========================
+   SIGHTS PANEL
+========================= */
+
+/* ===== SIGHTS MODAL LOOK (Python-style) ===== */
+
+#sightsPanel {
+  /* modal card */
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(980px, calc(100vw - 60px));
+  height: min(760px, calc(100vh - 60px));
+
+  background: #2a3443;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 18px;
+  box-shadow: 0 22px 70px rgba(0,0,0,0.55);
+
+  padding: 18px;
+  display: none; /* your JS toggles to flex */
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Header row */
+.sightsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sightsTitle {
+  color: rgba(255,255,255,0.90);
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.sightsClose {
+  width: 78px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.85);
+  cursor: pointer;
+}
+
+/* Big upload bar */
+.uploadHero {
+  height: 70px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: linear-gradient(90deg, #2b0a54, #3e0b6d);
+  color: white;
+  font-weight: 900;
+  font-size: 28px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+
+  cursor: pointer;
+}
+.uploadHero:active { transform: translateY(1px); }
+
+/* Middle content: tiles left, words right */
+/* Two tiles on top, words under RIGHT tile */
+.sightsBody {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 240px 240px;
+  grid-template-rows: auto 1fr;
+  gap: 18px 22px;
+  justify-content: center;
+  align-content: start;
+  padding-top: 10px;
+}
+
+/* =========================
+   SOUNDS PANEL (reuse sights modal)
+========================= */
+
+#soundsPanel {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(980px, calc(100vw - 60px));
+  height: min(760px, calc(100vh - 60px));
+
+  background: #2a3443;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 18px;
+  box-shadow: 0 22px 70px rgba(0,0,0,0.55);
+
+  padding: 18px;
+  display: none;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.soundCard {
+  background: rgba(0,0,0,0.12);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 14px;
+  padding: 18px;
+}
+
+.soundCardTitle {
+  text-align: center;
+  font-weight: 900;
+  letter-spacing: 1px;
+  color: rgba(255,255,255,0.92);
+  margin-top: 4px;
+}
+
+.soundCardHelp {
+  text-align: center;
+  font-size: 12px;
+  color: rgba(255,255,255,0.72);
+  margin-top: 8px;
+  margin-bottom: 14px;
+}
+
+.soundRow {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 14px;
+  align-items: center;
+}
+
+.soundOr {
+  font-weight: 900;
+  color: rgba(255,255,255,0.85);
+  text-align: center;
+}
+
+.soundBtn {
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.92);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.soundBtn:active { transform: translateY(1px); }
+
+.soundModeBtn {
+  min-width: 160px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.92);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.soundModeBtn.isOn {
+  background: rgba(46,160,67,0.40);
+  border: 1px solid rgba(46,160,67,0.75);
+}
+.soundFileList {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 12px;
+  background: rgba(0,0,0,0.18);
+  color: rgba(255,255,255,0.92);
+  max-height: 140px;
+  overflow: auto;
+  font-size: 14px;
+}
+
+.soundFileItem { opacity: 0.9; margin: 2px 0; }
+
+.primeStatus {
+  margin-top: 10px;
+  opacity: 0.9;
+  font-size: 14px;
+}
+
+.mixControlsRow {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.mixCtlLabel {
+  font-size: 13px;
+  opacity: 0.85;
+  margin-bottom: 6px;
+  font-weight: 700;
+}
+
+.mixCtl input[type="range"] { width: 100%; }
+
+.mixReadout {
+  margin-top: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  opacity: 0.75;
+}
+.tileGrid {
+  grid-column: 1 / span 2;
+  grid-row: 1;
+  display: contents; /* allows tiles to sit directly in the 2-col grid */
+}
+
+/* Place tiles */
+.tileBtn.eyeTile { grid-column: 1; grid-row: 1; }
+.tileBtn.trigTile { grid-column: 2; grid-row: 1; }
+
+/* Words card under the triggers tile */
+.wordsCard {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+/* Hide words card when off */
+.wordsCard.hidden {
+  display: none;
+}
+
+/* Optional: show toggle state visually */
+.tileBtn.isOn {
+  outline: 3px solid rgba(255,255,255,0.25);
+  filter: brightness(1.06);
+}
+
+.wordsInputRow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.wordsInputRow input {
+  flex: 1;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(0,0,0,0.20);
+  color: rgba(255,255,255,0.90);
+  padding: 0 12px;
+  outline: none;
+}
+
+.wordsAddBtn {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: none;
+  background: #2ea043;
+  color: white;
+  font-weight: 900;
+  font-size: 22px;
+  cursor: pointer;
+}
+.wordsAddBtn:active { transform: translateY(1px); }
+
+.wordsList {
+  height: 200px;
+  overflow: auto;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(0,0,0,0.20);
+}
+
+.wordItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  color: white;
+  font-weight: 900;
+  letter-spacing: 0.3px;
+}
+
+.wordItem:last-child { border-bottom: none; }
+
+.wordRemove {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: none;
+  background: #e24a4a;
+  color: white;
+  cursor: pointer;
+  font-weight: 900;
+  line-height: 22px;
+}
+
+/* Optional: a "Clear Words" button inside the card */
+.wordsFooter {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+}
+.wordsClearBtn {
+  height: 32px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.85);
+  cursor: pointer;
+  padding: 0 10px;
+  font-weight: 800;
+}
+
+/* =========================
+   PRIME RECORD OVERLAY + PREVIEW
+========================= */
+
+#recordOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: none; /* toggled to flex */
+  align-items: center;
+  justify-content: center;
+  background: rgba(120, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+.recordOverlayBox {
+  width: min(720px, calc(100vw - 80px));
+  padding: 28px 28px;
+  border-radius: 22px;
+  border: 3px solid rgba(255, 80, 80, 0.85);
+  background: rgba(0, 0, 0, 0.78);
+  box-shadow: 0 30px 90px rgba(0,0,0,0.65);
+  text-align: center;
+}
+
+.recordOverlayText {
+  font-size: 34px;
+  font-weight: 1000;
+  letter-spacing: 1px;
+  color: #ff4b4b;
+  text-shadow: 0 0 18px rgba(255, 60, 60, 0.85);
+  animation: recPulse 0.9s ease-in-out infinite alternate;
+}
+
+.recordOverlayTimer {
+  margin-top: 16px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 26px;
+  color: rgba(255,255,255,0.92);
+}
+
+.recordOverlayStop {
+  margin-top: 22px;
+  height: 54px;
+  min-width: 200px;
+  border-radius: 14px;
+  border: 2px solid rgba(255, 80, 80, 0.90);
+  background: rgba(255, 20, 20, 0.20);
+  color: rgba(255,255,255,0.95);
+  font-size: 20px;
+  font-weight: 1000;
+  cursor: pointer;
+}
+
+.recordOverlayStop:active { transform: translateY(1px); }
+
+@keyframes recPulse {
+  from { filter: brightness(1.0); transform: scale(1.0); }
+  to   { filter: brightness(1.25); transform: scale(1.03); }
+}
+
+.primePlayback {
+  width: 100%;
+  margin-top: 14px;
+  border-radius: 12px;
+}
+
+
+
+/* =========================
+   TILE BUTTONS (Sights)
+========================= */
+.tileBtn {
+  height: 240px;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.06);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.10);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  cursor: pointer;
+  transition: transform 120ms ease, filter 120ms ease, background 120ms ease;
+}
+
+.tileBtn:hover { filter: brightness(1.08); }
+.tileBtn:active { transform: translateY(1px); }
+
+.tileIconCircle {
+  width: 120px;
+  height: 120px;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.45);
+  display: grid;
+  place-items: center;
+  font-size: 54px;
+}
+
+.tileLabel {
+  text-align: center;
+  color: rgba(255,255,255,0.92);
+  font-weight: 900;
+  letter-spacing: 0.2px;
+  font-size: 22px;
+  line-height: 1.05;
+}
+
+.tileBtn.isOn {
+  background: rgba(46,160,67,0.26);
+  border-color: rgba(59,210,90,0.45);
+  box-shadow: 0 0 0 3px rgba(46,160,67,0.20), inset 0 0 0 1px rgba(0,0,0,0.10);
+}
+
+/* =========================
+   SOUNDS MODE TILES
+========================= */
+.modeTile {
+  width: 160px;
+  height: 160px;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.92);
+  font-weight: 900;
+  font-size: 22px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: transform 120ms ease, filter 120ms ease, background 120ms ease;
+}
+.modeTile:hover { filter: brightness(1.08); }
+.modeTile:active { transform: translateY(1px); }
+.modeTile.isOn {
+  background: rgba(46,160,67,0.55);
+  border-color: rgba(59,210,90,0.75);
+  color: white;
+}
+.modeLabel { padding: 10px; text-align: center; }
+
+/* =========================
+   Upload picker modal
+========================= */
+.pickOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  z-index: 50;
+  display: none; /* JS toggles to grid */
+  place-items: center;
+}
+
+.pickModal {
+  width: min(560px, calc(100vw - 60px));
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: #2a3443;
+  box-shadow: 0 22px 70px rgba(0,0,0,0.55);
+  padding: 16px;
+}
+
+.pickHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.pickTitle {
+  color: rgba(255,255,255,0.92);
+  font-weight: 900;
+  font-size: 16px;
+}
+
+.pickClose {
+  width: 78px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.85);
+  cursor: pointer;
+}
+
+.pickBody {
+  display: grid;
+  gap: 12px;
+}
+
+.pickBtn {
+  height: 56px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.92);
+  font-weight: 900;
+  font-size: 18px;
+  cursor: pointer;
+  transition: filter 120ms ease, transform 120ms ease;
+}
+.pickBtn:hover { filter: brightness(1.08); }
+.pickBtn:active { transform: translateY(1px); }
+
+/* === Fix: make phrase list text readable === */
+ /* phraseList uses inline styles; ensure default text is white */
+#speechPanel, .speechPanel, .phraseList, #phraseList { color: white; }
+
+/* === Fix: Triggers (sights) list matches speech list + doesn't push upload button off-screen === */
+.wordsCard{
+  /* keep it from growing too tall and pushing other controls */
+  max-height: 360px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.wordsList{
+  /* let the list scroll inside the card */
+  height: auto;
+  flex: 1;
+  max-height: 180px;
+}
+
+.wordItem{ color: white; }
