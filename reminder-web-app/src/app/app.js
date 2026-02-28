@@ -17,6 +17,46 @@ export class App {
     this.root.style.background = "#0b1220";
     this.root.style.overflow = "hidden";
 
+    // ---------- Brand banner ----------
+    this.banner = document.createElement("div");
+    this.banner.id = "brandBanner";
+    Object.assign(this.banner.style, {
+      position: "absolute",
+      top: "14px",
+      left: "50%",
+      transform: "translateX(-50%)",
+      zIndex: "0",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      gap: "8px",
+      pointerEvents: "none",
+    });
+
+    this.bannerImg = document.createElement("img");
+    this.bannerImg.src = "/Mask.png"; // put brand.png in /public
+    this.bannerImg.alt = "The-Reminder";
+    Object.assign(this.bannerImg.style, {
+      height: "200px",
+      maxWidth: "80vw",
+      zIndex: "0",
+      objectFit: "contain",
+    });
+
+    this.bannerText = document.createElement("div");
+    this.bannerText.textContent = "WELCOME TO THE REMINDER";
+    Object.assign(this.bannerText.style, {
+      fontFamily: "'TheReminder', system-ui, sans-serif",
+      fontSize: "60px",
+      fontWeight: "900",
+      color: "#fff",
+      objectFit: "contain",
+      textShadow: "0 10px 28px rgba(0,0,0,0.65)",
+    });
+
+    this.banner.appendChild(this.bannerImg);
+    this.banner.appendChild(this.bannerText);
+
     // =========================
     // CORE STATE
     // =========================
@@ -120,21 +160,39 @@ export class App {
     // =========================
     this.controls = document.createElement("div");
     this.controls.style.position = "absolute";
-    this.controls.style.top = "14px";
-    this.controls.style.right = "14px";
+
+    // Bottom-center
+    this.controls.style.left = "50%";
+    this.controls.style.bottom = "22px";
+    this.controls.style.transform = "translateX(-50%)";
+
+    // Match your tile grid width: (3 * 220px) + (2 * 26px) = 712px
+    // Keep it responsive so it doesn't overflow on smaller screens
+    this.controls.style.width = "min(712px, calc(100vw - 40px))";
+
     this.controls.style.display = "flex";
-    this.controls.style.gap = "10px";
+    this.controls.style.justifyContent = "center";
     this.controls.style.zIndex = "3";
 
     this.btnStart = document.createElement("button");
     this.btnStart.textContent = "Start";
+
+    this.btnStart.style.width = "100%";
+    this.btnStart.style.height = "86px";
+    this.btnStart.style.fontSize = "28px";
+    this.btnStart.style.fontWeight = "900";
+    this.btnStart.style.borderRadius = "14px";
+    this.btnStart.style.border = "1px solid rgba(255,255,255,0.18)";
+    this.btnStart.style.background = "#b00000";
+    this.btnStart.style.color = "white";
+    this.btnStart.style.boxShadow = "0 14px 40px rgba(0,0,0,0.55)";
 
     this.btnStop = document.createElement("button");
     this.btnStop.textContent = "Stop";
     this.btnStop.disabled = true;
 
     this.controls.appendChild(this.btnStart);
-    this.controls.appendChild(this.btnStop);
+    // this.controls.appendChild(this.btnStop);
 
     // =========================
     // HOME PANEL
@@ -853,6 +911,36 @@ try {
     parent.appendChild(this.root);
 
     this.stimulus.mount(this.root);
+    // Load font (put TheReminder.woff2 in /public/fonts)
+    const fontStyle = document.createElement("style");
+    fontStyle.textContent = `
+    @font-face {
+      font-family: 'TheReminder';
+      src: url('/fonts/TheReminder.woff2') format('woff2');
+      font-weight: 100 900;
+      font-style: normal;
+      font-display: swap;
+    }
+    `;
+    document.head.appendChild(fontStyle);
+
+    // Add banner to UI
+    this.root.appendChild(this.banner);
+    // Load custom font (file must exist at /public/fonts/TheReminder.woff2)
+    const style = document.createElement("style");
+    style.textContent = `
+    @font-face {
+      font-family: 'TheReminder';
+      src: url('/fonts/TheReminder.woff2') format('woff2');
+      font-weight: 100 900;
+      font-style: normal;
+      font-display: swap;
+    }
+    `;
+    document.head.appendChild(style);
+
+    // Add banner to UI (visible on menus)
+    this.root.appendChild(this.banner);
 
     this.root.appendChild(this.homePanel);
     this.root.appendChild(this.sightsPanel);
@@ -861,13 +949,41 @@ try {
     this.root.appendChild(this.controls);
     this.root.appendChild(this.recordOverlay);
 
-    this.hud.mount(this.root);
+    // Show HUD only while developing (hide in Cloudflare production build)
+    if (import.meta.env.DEV) {
+      this.hud.mount(this.root);
+    }
 
     this.root.appendChild(this.fileInput);
     this.root.appendChild(this.imagesFolderInput);
     this.root.appendChild(this.soundsInput);
     this.root.appendChild(this.soundsFolderInput);
     this.root.appendChild(this.primeInput);
+
+
+    // =========================
+    // BRAND BANNER (top center)
+    // =========================
+    this.bannerImg = document.createElement("img");
+    this.bannerImg.src = "/Mask.png";        // must be in /public
+    this.bannerImg.alt = "The-Reminder";
+    Object.assign(this.bannerImg.style, {
+      height: "90px",
+      maxWidth: "80vw",
+      objectFit: "contain",
+      filter: "drop-shadow(0 10px 24px rgba(0,0,0,0.55))",
+    });
+
+    this.bannerText = document.createElement("div");
+    this.bannerText.textContent = "The-Reminder";
+    Object.assign(this.bannerText.style, {
+      fontFamily: "'TheReminder', system-ui, sans-serif",
+      fontSize: "34px",
+      fontWeight: "900",
+      letterSpacing: "1px",
+      color: "white",
+      textShadow: "0 10px 28px rgba(0,0,0,0.65)",
+    });
 
     // Home navigation
     this.btnHomeSights.onclick = () => this._showPage("sights");
@@ -1049,6 +1165,15 @@ this.btnClearImages.onclick = () => { this.ui.clearImages(); this._updateMediaCo
     this.btnModeSequential.onclick = () => this._setSoundMode("sequential");
     this.btnModeOverload.onclick = () => this._setSoundMode("overload");
 
+
+    // If user hits ESC and exits fullscreen while running, stop the program.
+    this._onFullscreenChange = () => {
+      if (this.running && !document.fullscreenElement) {
+        this.stop();
+      }
+    };
+    document.addEventListener("fullscreenchange", this._onFullscreenChange);
+
     this._setSoundMode(this.soundMode);
     this._updateSoundModeRowVisibility();
 
@@ -1152,7 +1277,9 @@ this.btnClearImages.onclick = () => { this.ui.clearImages(); this._updateMediaCo
 
     this._eyeGraceUntil = performance.now() + this.eyeGraceMs;
     this.running = true;
-
+    // Hide header + start button while running
+    if (this.banner) this.banner.style.display = "none";
+    if (this.controls) this.controls.style.display = "none";
     // If a picker overlay is somehow left open, force-hide it so it can’t block clicks.
     try {
       const ov = document.querySelector(".pickOverlay");
@@ -1169,12 +1296,16 @@ this.btnClearImages.onclick = () => { this.ui.clearImages(); this._updateMediaCo
     }
 
     // Hide menus while running
+    if (this.banner) this.banner.style.display = "none";
     this.homePanel.style.display = "none";
     this.sightsPanel.style.display = "none";
     this.soundsPanel.style.display = "none";
 
     this.btnStart.disabled = true;
     this.btnStop.disabled = false;
+    // Hide header + start controls while running
+    if (this.banner) this.banner.style.display = "none";
+    if (this.controls) this.controls.style.display = "none";
   }
 
   stop() {
@@ -1196,9 +1327,11 @@ this.btnClearImages.onclick = () => { this.ui.clearImages(); this._updateMediaCo
     this.btnStart.disabled = false;
     this.btnStop.disabled = true;
 
-    if (this.banner) this.banner.style.display = "none";
+    if (this.banner) this.banner.style.display = "flex";
     this.controls.style.display = "flex";
-
+    // Show header + start button again
+    if (this.banner) this.banner.style.display = "flex";
+    if (this.controls) this.controls.style.display = "flex";
     this._showPage("home");
   }
 
