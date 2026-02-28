@@ -1247,14 +1247,24 @@ this.btnClearImages.onclick = () => { this.ui.clearImages(); this._updateMediaCo
   }
 
   // =========================
+  async _ensureFullscreen() {
+  if (document.fullscreenElement) return true;
+  try {
+    // Use your root so it’s consistent
+    await this.root.requestFullscreen();
+    return true;
+  } catch (e) {
+    // Fullscreen can fail due to permission prompts / browser rules
+    return false;
+  }
+}
 
   // Run control
   // =========================
   async start() {
     if (this.running) return;
 
-    try { await document.documentElement.requestFullscreen(); } catch {}
-
+    this._ensureFullscreen();
     // Resume AudioContext on user gesture
     this._ensureAudioCtx();
     try { await this.audioCtx.resume(); } catch {}
