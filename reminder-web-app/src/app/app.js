@@ -37,7 +37,7 @@ export class App {
     this.bannerImg.src = "/Mask.png"; // put brand.png in /public
     this.bannerImg.alt = "The-Reminder";
     Object.assign(this.bannerImg.style, {
-      height: "200px",
+      height: "clamp(90px, 18vh, 160px)",
       maxWidth: "80vw",
       zIndex: "0",
       objectFit: "contain",
@@ -47,10 +47,13 @@ export class App {
     this.bannerText.textContent = "WELCOME TO THE REMINDER";
     Object.assign(this.bannerText.style, {
       fontFamily: "'TheReminder', system-ui, sans-serif",
-      fontSize: "60px",
+      fontSize: "clamp(22px, 4.5vw, 34px)",
       fontWeight: "900",
       color: "#fff",
       objectFit: "contain",
+      textAlign: "center",
+      lineHeight: "1.05",
+      maxWidth: "min(1100px, 96vw)",
       textShadow: "0 10px 28px rgba(0,0,0,0.65)",
     });
 
@@ -61,6 +64,7 @@ export class App {
     // CORE STATE
     // =========================
     this.running = false;
+    this._updateRunOverlay();
     this._frames = 0;
 
     this.stimulus = new StimulusCanvas();
@@ -207,6 +211,8 @@ export class App {
     this.homePanel.style.gridTemplateColumns = "repeat(3, 220px)";
     this.homePanel.style.gap = "26px";
     this.homePanel.style.placeContent = "center";
+    this.homePanel.style.paddingTop = "clamp(180px, 28vh, 280px)";
+    this.homePanel.style.paddingBottom = "140px";
     this.homePanel.style.zIndex = "2";
 
     const mkTile = (label) => {
@@ -709,6 +715,46 @@ export class App {
     `;
     this._recTimerEl = this.recordOverlay.querySelector("#recTimer");
     this.recordOverlay.querySelector("#stopRecBtn").onclick = () => this._stopPrimeRecording();
+
+    // =========================
+    // RUN OVERLAY (touch-friendly Stop + Go Fullscreen)
+    // Shown only when running AND not fullscreen (e.g., first run permission flow)
+    // =========================
+    this.runOverlay = document.createElement("div");
+    this.runOverlay.id = "runOverlay";
+    Object.assign(this.runOverlay.style, {
+      position: "fixed",
+      inset: "0",
+      zIndex: "99998",
+      display: "none",
+      alignItems: "center",
+      justifyContent: "center",
+      background: "rgba(0,0,0,0.25)",
+      backdropFilter: "blur(2px)",
+    });
+
+    this.runOverlay.innerHTML = `
+      <div style="width:min(520px, calc(100vw - 40px)); padding:18px; border-radius:18px;
+                  background:rgba(20,20,20,0.78); border:1px solid rgba(255,255,255,0.12);
+                  box-shadow:0 20px 60px rgba(0,0,0,0.55); text-align:center;">
+        <div style="color:white; font-weight:900; font-size:20px; margin-bottom:12px;">
+          Running…
+        </div>
+        <button id="goFsBtn" style="width:100%; height:64px; border-radius:14px; border:1px solid rgba(255,255,255,0.16);
+                                    background:#2e7dff; color:white; font-size:20px; font-weight:900; cursor:pointer;">
+          Go Fullscreen
+        </button>
+        <div style="height:12px;"></div>
+        <button id="stopRunBtn" style="width:100%; height:64px; border-radius:14px; border:1px solid rgba(255,255,255,0.16);
+                                       background:#b00000; color:white; font-size:20px; font-weight:900; cursor:pointer;">
+          Stop
+        </button>
+        <div style="margin-top:10px; font-size:13px; opacity:0.85; color:white;">
+          Tip: long-press anywhere to stop.
+        </div>
+      </div>
+    `;
+
     // BIND TICK
     // =========================
     this._tick = this._tick.bind(this);
@@ -742,7 +788,11 @@ export class App {
   // Navigation
   // =========================
   _showPage(page) {
-    this.ui.setPage(page);
+    try {
+      if (this.ui && typeof this.ui.setPage === "function") this.ui.setPage(page);
+    } catch (e) {
+      console.warn("[NAV] ui.setPage failed:", e);
+    }
 
     const isHome = page === "home";
     const isSights = page === "sights";
@@ -753,6 +803,16 @@ export class App {
     this.sightsPanel.style.display = isSights ? "flex" : "none";
     this.soundsPanel.style.display = isSounds ? "flex" : "none";
     this.speechPanel.style.display = isSpeech ? "flex" : "none";
+
+    // Start button only on home, only when not running
+    if (this.controls) {
+      this.controls.style.display = (isHome && !this.running) ? "flex" : "none";
+    }
+
+    // Banner visible only on home menus (hide during submenus & running)
+    if (this.banner) {
+      this.banner.style.display = (isHome && !this.running) ? "flex" : "none";
+    }
   }
 
   // =========================
@@ -911,7 +971,7 @@ try {
     parent.appendChild(this.root);
 
     this.stimulus.mount(this.root);
-    // Load font (put TheReminder.woff2 in /public/fonts)
+    // Load font once (TheReminder.woff2 must be in /public/fonts)
     const fontStyle = document.createElement("style");
     fontStyle.textContent = `
     @font-face {
@@ -924,23 +984,9 @@ try {
     `;
     document.head.appendChild(fontStyle);
 
-    // Add banner to UI
+    // Add banner to UI (behind menus)
     this.root.appendChild(this.banner);
-    // Load custom font (file must exist at /public/fonts/TheReminder.woff2)
-    const style = document.createElement("style");
-    style.textContent = `
-    @font-face {
-      font-family: 'TheReminder';
-      src: url('/fonts/TheReminder.woff2') format('woff2');
-      font-weight: 100 900;
-      font-style: normal;
-      font-display: swap;
-    }
-    `;
-    document.head.appendChild(style);
 
-    // Add banner to UI (visible on menus)
-    this.root.appendChild(this.banner);
 
     this.root.appendChild(this.homePanel);
     this.root.appendChild(this.sightsPanel);
@@ -948,42 +994,55 @@ try {
     this.root.appendChild(this.speechPanel);
     this.root.appendChild(this.controls);
     this.root.appendChild(this.recordOverlay);
+    this.root.appendChild(this.runOverlay);
 
     // Show HUD only while developing (hide in Cloudflare production build)
     if (import.meta.env.DEV) {
       this.hud.mount(this.root);
     }
 
+
+    // Run overlay buttons
+    try {
+      this.runOverlay.querySelector("#goFsBtn").onclick = async () => {
+        await this._ensureFullscreen();
+        this._updateRunOverlay();
+      };
+      this.runOverlay.querySelector("#stopRunBtn").onclick = () => this.stop();
+    } catch {}
+
+    // Touch-friendly stop gestures while running:
+    // - long-press anywhere (~650ms) to stop
+    // - double-tap / double-click to stop
+    let pressTimer = null;
+    const startPress = () => {
+      if (!this.running) return;
+      clearTimeout(pressTimer);
+      pressTimer = setTimeout(() => this.stop(), 650);
+    };
+    const endPress = () => {
+      clearTimeout(pressTimer);
+      pressTimer = null;
+    };
+    this.root.addEventListener("pointerdown", startPress);
+    this.root.addEventListener("pointerup", endPress);
+    this.root.addEventListener("pointercancel", endPress);
+    this.root.addEventListener("pointerleave", endPress);
+
+    let lastTap = 0;
+    this.root.addEventListener("pointerup", () => {
+      if (!this.running) return;
+      const now = Date.now();
+      if (now - lastTap < 300) this.stop();
+      lastTap = now;
+    });
+
+
     this.root.appendChild(this.fileInput);
     this.root.appendChild(this.imagesFolderInput);
     this.root.appendChild(this.soundsInput);
     this.root.appendChild(this.soundsFolderInput);
     this.root.appendChild(this.primeInput);
-
-
-    // =========================
-    // BRAND BANNER (top center)
-    // =========================
-    this.bannerImg = document.createElement("img");
-    this.bannerImg.src = "/Mask.png";        // must be in /public
-    this.bannerImg.alt = "The-Reminder";
-    Object.assign(this.bannerImg.style, {
-      height: "90px",
-      maxWidth: "80vw",
-      objectFit: "contain",
-      filter: "drop-shadow(0 10px 24px rgba(0,0,0,0.55))",
-    });
-
-    this.bannerText = document.createElement("div");
-    this.bannerText.textContent = "The-Reminder";
-    Object.assign(this.bannerText.style, {
-      fontFamily: "'TheReminder', system-ui, sans-serif",
-      fontSize: "34px",
-      fontWeight: "900",
-      letterSpacing: "1px",
-      color: "white",
-      textShadow: "0 10px 28px rgba(0,0,0,0.65)",
-    });
 
     // Home navigation
     this.btnHomeSights.onclick = () => this._showPage("sights");
@@ -992,10 +1051,16 @@ try {
 
 
     // Speech controls
-    this.btnSpeechSilent.onclick = () => this._toggleSpeechMode("silent");
-    this.btnSpeechRepeat.onclick = () => this._toggleSpeechMode("repeat");
+    this.btnSpeechSilent.onclick = async () => {
+      await this._primeMicPermission();
+      this._toggleSpeechMode("silent");
+    };
+    this.btnSpeechRepeat.onclick = async () => {
+      await this._primeMicPermission();
+      this._toggleSpeechMode("repeat");
+    };
 
-    this.btnAddPhrase.onclick = () => this._tryAddPhraseFromInput();
+this.btnAddPhrase.onclick = () => this._tryAddPhraseFromInput();
     this.speechInput.addEventListener("keydown", (e) => {
       e.stopPropagation();
       if (e.key === "Enter") {
@@ -1070,7 +1135,11 @@ try {
 this.btnClearImages.onclick = () => { this.ui.clearImages(); this._updateMediaCounts(); };
 
     // Sights tiles
-    this.btnEyeTile.onclick = () => this._setEyeTrackingOn(!this.requireEyesOpen);
+    this.btnEyeTile.onclick = async () => {
+      const next = !this.requireEyesOpen;
+      if (next) await this._primeCameraPermission();
+      this._setEyeTrackingOn(next);
+    };
     this.btnTrigTile.onclick = () => this._setTriggersOn(!this.triggersOn);
 
     // Words
@@ -1169,8 +1238,11 @@ this.btnClearImages.onclick = () => { this.ui.clearImages(); this._updateMediaCo
     // If user hits ESC and exits fullscreen while running, stop the program.
     this._onFullscreenChange = () => {
       if (this.running && !document.fullscreenElement) {
+        // If user exits fullscreen while running, stop.
         this.stop();
+        return;
       }
+      this._updateRunOverlay();
     };
     document.addEventListener("fullscreenchange", this._onFullscreenChange);
 
@@ -1259,12 +1331,50 @@ this.btnClearImages.onclick = () => { this.ui.clearImages(); this._updateMediaCo
   }
 }
 
+
+  async _primeCameraPermission() {
+    if (this._camPrimed) return true;
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ video: true });
+      s.getTracks().forEach(t => t.stop());
+      this._camPrimed = true;
+      return true;
+    } catch (e) {
+      console.warn("[PERM] camera denied:", e);
+      return false;
+    }
+  }
+
+  async _primeMicPermission() {
+    if (this._micPrimed) return true;
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ audio: true });
+      s.getTracks().forEach(t => t.stop());
+      this._micPrimed = true;
+      return true;
+    } catch (e) {
+      console.warn("[PERM] mic denied:", e);
+      return false;
+    }
+  }
+
+  _showRunOverlay(show) {
+    if (!this.runOverlay) return;
+    this.runOverlay.style.display = show ? "flex" : "none";
+  }
+
+  _updateRunOverlay() {
+    if (!this.runOverlay) return;
+    if (!this.running) return this._showRunOverlay(false);
+    this._showRunOverlay(!document.fullscreenElement);
+  }
+
   // Run control
   // =========================
   async start() {
     if (this.running) return;
 
-    this._ensureFullscreen();
+    await this._ensureFullscreen();
     // Resume AudioContext on user gesture
     this._ensureAudioCtx();
     try { await this.audioCtx.resume(); } catch {}
@@ -1287,6 +1397,7 @@ this.btnClearImages.onclick = () => { this.ui.clearImages(); this._updateMediaCo
 
     this._eyeGraceUntil = performance.now() + this.eyeGraceMs;
     this.running = true;
+    this._updateRunOverlay();
     // Hide header + start button while running
     if (this.banner) this.banner.style.display = "none";
     if (this.controls) this.controls.style.display = "none";
