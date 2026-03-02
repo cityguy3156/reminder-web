@@ -1,6 +1,10 @@
 export class StimulusCanvas {
   constructor() {
     this.canvas = document.createElement("canvas");
+    this.canvas.style.position = "fixed";
+    this.canvas.style.inset = "0";
+    this.canvas.style.pointerEvents = "none";
+    this.canvas.style.zIndex = "0";
     this.canvas.id = "stimulus";
     this.ctx = this.canvas.getContext("2d");
 

@@ -16,10 +16,23 @@ export class VisionEyeGate {
     this.rightEAR = 0;
     this.eyesOk = false;
 
-    // Tunables
-    this.earThresh = 0.19;
+    // Tunables (stricter + stable)
+    // Hysteresis: close at a lower threshold, reopen at a higher threshold.
+    this.earCloseThresh = 0.18; // stricter "must be really closed"
+    this.earOpenThresh  = 0.22; // must be clearly open again
+
     this.maxFps = 15;
     this._lastInferMs = 0;
+
+    // Consecutive-frame gating
+    this.closedFramesRequired = 3; // ~0.2s at 15fps
+    this.openFramesRequired   = 2; // ~0.13s at 15fps
+    this._closedCount = 0;
+    this._openCount = 0;
+
+    // Current state (what App should trust)
+    this.eyesOk = false;
+
 
     this.lastError = "";
   }
@@ -97,7 +110,11 @@ export class VisionEyeGate {
     const faces = res.faceLandmarks || [];
     if (!faces.length) {
       this.hasFace = false;
+
+      // Treat "no face" as NOT OK (strict), and reset counters so we don't instantly reopen.
       this.eyesOk = false;
+      this._closedCount = 0;
+      this._openCount = 0;
       return;
     }
 
@@ -112,13 +129,40 @@ export class VisionEyeGate {
     this.leftEAR = leftEAR;
     this.rightEAR = rightEAR;
 
-    this.eyesOk = (leftEAR > this.earThresh) && (rightEAR > this.earThresh);
-  }
+    const bothAboveOpen = (leftEAR > this.earOpenThresh) && (rightEAR > this.earOpenThresh);
+    const eitherBelowClose = (leftEAR < this.earCloseThresh) || (rightEAR < this.earCloseThresh);
+
+    // If currently OPEN, be strict about closing (close if either eye really closes for N frames)
+    if (this.eyesOk) {
+      if (eitherBelowClose) {
+        this._closedCount++;
+        this._openCount = 0;
+        if (this._closedCount >= this.closedFramesRequired) {
+          this.eyesOk = false;
+          this._closedCount = 0;
+        }
+      } else {
+        this._closedCount = 0;
+      }
+    } else {
+      // If currently CLOSED, require BOTH eyes clearly open for N frames to reopen
+      if (bothAboveOpen) {
+        this._openCount++;
+        this._closedCount = 0;
+        if (this._openCount >= this.openFramesRequired) {
+          this.eyesOk = true;
+          this._openCount = 0;
+        }
+      } else {
+        this._openCount = 0;
+      }
+    } 
+ }
 
   statusLine() {
     if (this.lastError) return `VISION ERROR: ${this.lastError}`;
     if (!this.faceLandmarker) return "VISION: not started";
     if (!this.hasFace) return "VISION: no face";
-    return `EAR L=${this.leftEAR.toFixed(3)} R=${this.rightEAR.toFixed(3)} (${this.eyesOk ? "OPEN" : "CLOSED"})`;
+    return `EAR L=${this.leftEAR.toFixed(3)} R=${this.rightEAR.toFixed(3)} (C<${this.earCloseThresh} O>${this.earOpenThresh}) ${this.eyesOk ? "OPEN" : "CLOSED"}`;
   }
 }
