@@ -71,7 +71,7 @@ export class App {
     this.vision = new VisionEyeGate();
     this.eyeTrigger = new ClosedEdgeTrigger({ closeDelayS: 0.12, openDelayS: 0.12 });
 
-    this.requireEyesOpen = true;
+    this.requireEyesOpen = false;
     this.requireSilence = true;
 
     this.eyeGraceMs = 1500;
@@ -254,6 +254,15 @@ export class App {
     
     this.btnConnectLight = document.createElement("button");
     this.btnConnectLight.textContent = "ADD SHOCK DEVICE";
+    this.btnConnectLight.style.background = "#1f6feb"; // GitHub blue
+    this.btnConnectLight.style.color = "white";
+    this.btnConnectLight.style.border = "none";
+    this.btnConnectLight.style.borderRadius = "14px";
+    this.btnConnectLight.style.fontSize = "22px";
+    this.btnConnectLight.style.fontWeight = "800";
+    this.btnConnectLight.style.cursor = "pointer";
+    this.btnConnectLight.style.boxShadow = "0 10px 30px rgba(0,0,0,0.35)";
+    this.btnConnectLight.style.transition = "all 0.2s ease";
 
     this.btnConnectLight.style.gridColumn = "1 / 4";
     this.btnConnectLight.style.width = "100%";
@@ -261,6 +270,22 @@ export class App {
     this.btnConnectLight.style.height = "86px";
     this.btnConnectLight.style.justifySelf = "stretch";
     this.btnConnectLight.style.alignSelf = "stretch";
+    this.btnConnectLight.onmouseenter = () => {
+      this.btnConnectLight.style.background = "#388bfd";
+    };
+
+    this.btnConnectLight.onmouseleave = () => {
+      this.btnConnectLight.style.background = "#1f6feb";
+    };
+
+    this.btnConnectLight.onmousedown = () => {
+      this.btnConnectLight.style.transform = "scale(0.97)";
+    };
+
+    this.btnConnectLight.onmouseup = () => {
+      this.btnConnectLight.style.transform = "scale(1)";
+    };
+
 
     this.btnHomeSights = mkTile("Sights");
     this.btnHomeSounds = mkTile("Sounds");
@@ -1166,7 +1191,16 @@ try {
     this.btnClearImages.onclick = () => { this.ui.clearImages(); this._updateMediaCounts(); };
 
     // Sights tiles
-    this.btnEyeTile.onclick = () => this._setEyeTrackingOn(!this.requireEyesOpen);
+    this.btnEyeTile.onclick = async () => {
+      const next = !this.requireEyesOpen;
+
+      if (next) {
+        const ok = await this._primeCameraPermission();
+        if (!ok) return;
+      }
+
+      this._setEyeTrackingOn(next);
+    };
     this.btnTrigTile.onclick = () => this._setTriggersOn(!this.triggersOn);
 
     // Words
@@ -1365,6 +1399,16 @@ try {
   }
 }
 
+async _primeCameraPermission() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    stream.getTracks().forEach(t => t.stop());
+    return true;
+  } catch (e) {
+    console.warn("Camera permission denied:", e);
+    return false;
+  }
+}
   // Run control
   // =========================
   async start() {
