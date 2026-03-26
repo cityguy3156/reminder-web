@@ -37,7 +37,7 @@ export class App {
     this.bannerImg.src = "/Mask.png"; // put brand.png in /public
     this.bannerImg.alt = "The-Reminder";
     Object.assign(this.bannerImg.style, {
-      height: "200px",
+      height: "clamp(80px, 18vh, 160px)",
       maxWidth: "80vw",
       zIndex: "0",
       objectFit: "contain",
@@ -47,7 +47,8 @@ export class App {
     this.bannerText.textContent = "WELCOME TO THE REMINDER";
     Object.assign(this.bannerText.style, {
       fontFamily: "'TheReminder', system-ui, sans-serif",
-      fontSize: "60px",
+      fontSize: "clamp(22px, 4vw, 48px)",
+      whiteSpace: "nowrap",
       fontWeight: "900",
       color: "#fff",
       objectFit: "contain",
@@ -188,7 +189,7 @@ export class App {
 
     this.controls.style.display = "flex";
     this.controls.style.justifyContent = "center";
-    this.controls.style.zIndex = "3";
+    this.controls.style.zIndex = "1";
 
     this.btnStart = document.createElement("button");
     this.btnStart.textContent = "Start";
@@ -220,7 +221,10 @@ export class App {
     this.homePanel.style.right = "0";
     this.homePanel.style.bottom = "0";
     this.homePanel.style.display = "grid";
-    this.homePanel.style.gridTemplateColumns = "repeat(3, 220px)";
+    this.homePanel.style.gridTemplateColumns = "repeat(auto-fit, minmax(140px, 1fr))";
+    this.homePanel.style.padding = "120px 20px 120px";
+    this.homePanel.style.maxWidth = "900px";
+    this.homePanel.style.margin = "0 auto";
     this.homePanel.style.gap = "26px";
     this.homePanel.style.placeContent = "center";
     this.homePanel.style.zIndex = "2";
@@ -228,8 +232,9 @@ export class App {
     const mkTile = (label) => {
       const b = document.createElement("button");
       b.textContent = label;
-      b.style.width = "210px";
-      b.style.height = "210px";
+      b.style.width = "100%";
+      b.style.aspectRatio = "1 / 1";
+      b.style.maxWidth = "220px";
       b.style.fontSize = "22px";
       b.style.fontWeight = "900";
       b.style.borderRadius = "18px";
