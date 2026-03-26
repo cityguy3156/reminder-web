@@ -70,7 +70,7 @@ export class App {
     this.vision = new VisionEyeGate();
     this.eyeTrigger = new ClosedEdgeTrigger({ closeDelayS: 0.12, openDelayS: 0.12 });
 
-    this.requireEyesOpen = false;
+    this.requireEyesOpen = true;
     this.requireSilence = true;
 
     this.eyeGraceMs = 1500;
@@ -78,7 +78,23 @@ export class App {
 
     this.triggersOn = false;
     this._visionError = "";
+// ===== BLE STATE =====
+    this._bleDevice = null;
+    this._bleServer = null;
+    this._bleService = null;
+    this._bleCharacteristic = null;
 
+    this._bleConnected = false;
+    this._bleBusy = false;
+
+    this._bleBlinkTimer = null;
+    this._bleBlinkOn = false;
+
+    this._bleBlinkLockedUntil = 0;
+    this._bleLastWantedBlink = false;
+
+    this._bleServiceUuid = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+    this._bleCharUuid = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
     // =========================
     // SPEECH STATE
     // =========================
@@ -223,10 +239,28 @@ export class App {
       b.style.cursor = "pointer";
       return b;
     };
+    
+    this.btnConnectLight = document.createElement("button");
+    this.btnConnectLight.textContent = "ADD SHOCK DEVICE";
+
+    this.btnConnectLight.style.gridColumn = "1 / span 3";
+    this.btnConnectLight.style.width = "100%";
+    this.btnConnectLight.style.height = "86px";
+    this.btnConnectLight.style.fontSize = "28px";
+    this.btnConnectLight.style.fontWeight = "900";
+    this.btnConnectLight.style.borderRadius = "14px";
+    this.btnConnectLight.style.border = "1px solid rgba(255,255,255,0.18)";
+    this.btnConnectLight.style.background = "#0066cc";
+    this.btnConnectLight.style.color = "white";
+    this.btnConnectLight.style.boxShadow = "0 14px 40px rgba(0,0,0,0.55)";
+    this.btnConnectLight.style.cursor = "pointer";
+    this.btnConnectLight.style.justifySelf = "stretch";
 
     this.btnHomeSights = mkTile("Sights");
     this.btnHomeSounds = mkTile("Sounds");
     this.btnHomeSpeech = mkTile("Speech");
+
+    this.homePanel.appendChild(this.btnConnectLight);
 
     this.homePanel.appendChild(this.btnHomeSights);
     this.homePanel.appendChild(this.btnHomeSounds);
@@ -1123,7 +1157,7 @@ try {
       this._updateMediaCounts();
     };
 
-this.btnClearImages.onclick = () => { this.ui.clearImages(); this._updateMediaCounts(); };
+    this.btnClearImages.onclick = () => { this.ui.clearImages(); this._updateMediaCounts(); };
 
     // Sights tiles
     this.btnEyeTile.onclick = () => this._setEyeTrackingOn(!this.requireEyesOpen);
@@ -1236,6 +1270,16 @@ this.btnClearImages.onclick = () => { this.ui.clearImages(); this._updateMediaCo
     this._showPage("home");
     this._updateMediaCounts();
     requestAnimationFrame(this._tick);
+
+
+    this.btnConnectLight.onclick = async () => {
+    try {
+      await this._connectBleLight();
+    } catch (e) {
+      console.error(e);
+      alert("Bluetooth failed: " + e.message);
+    }
+  };
   }
 
   // =========================
@@ -1318,6 +1362,8 @@ this.btnClearImages.onclick = () => { this.ui.clearImages(); this._updateMediaCo
   // Run control
   // =========================
   async start() {
+    this._stopBleBlink({ forceOff: true });
+
     if (this.running) return;
 
     this._ensureFullscreen();
@@ -1375,6 +1421,7 @@ this.btnClearImages.onclick = () => { this.ui.clearImages(); this._updateMediaCo
   }
 
   stop() {
+    this._stopBleBlink({ forceOff: true });
     this.homePanel.style.display = "grid";
     this.sightsPanel.style.display = "none";
     this.soundsPanel.style.display = "none";
@@ -1438,12 +1485,40 @@ this.btnClearImages.onclick = () => { this.ui.clearImages(); this._updateMediaCo
 
       const inEyeGrace = nowMs < this._eyeGraceUntil;
 
+      let edge = { on: false, off: false };
+
       if (hasFace) {
-        this.eyeTrigger.update(eyesOk, nowS);
+        edge = this.eyeTrigger.update(eyesOk, nowS);
+      } else {
+        // No face should behave like a fail state too.
+        // Reset debounce state so reacquiring a face doesn't leave stale edge state.
+        edge = { on: false, off: false };
       }
 
       eyesFail = this.requireEyesOpen && !inEyeGrace && (!hasFace || !eyesOk);
       showEyesClosedScreen = eyesFail;
+
+      // ===== BLE CONTROL =====
+      // Only send while eyes are actually closed
+      const wantedBlink =
+        this.running &&
+        this._bleConnected &&
+        eyesFail;
+
+      if (wantedBlink) {
+        this._startBleBlink();
+      } else if (this._bleConnected) {
+        this._stopBleBlink({ forceOff: true });
+      }
+      // Only force OFF when eyes are clearly open again and there is no active pulse.
+      const pulseActive = performance.now() < this._blePulseUntil;
+      const eyesClearlyOpen = hasFace && eyesOk && !edge.on && !eyesFail;
+
+      if (this._bleConnected && eyesClearlyOpen && !pulseActive) {
+        this._stopBleBlink({ forceOff: true });
+      }
+
+      this._bleLastWantedBlink = wantedBlink;
 
       if (!showEyesClosedScreen) {
         // Time-based slideshow stepping: if a slower machine drops frames,
@@ -2441,5 +2516,122 @@ _startPrime() {
     } catch {}
   }
 
+  // =========================
+  // BLE CONNECT
+  // =========================
+  async _connectBleLight() {
+    if (!navigator.bluetooth) {
+      throw new Error("Bluetooth not supported");
+    }
 
+    if (!window.isSecureContext) {
+      throw new Error("Use localhost or HTTPS");
+    }
+
+    const device = await navigator.bluetooth.requestDevice({
+      filters: [{ name: "ESP32-Light" }],
+      optionalServices: [this._bleServiceUuid],
+    });
+
+    const server = await device.gatt.connect();
+    const service = await server.getPrimaryService(this._bleServiceUuid);
+    const characteristic = await service.getCharacteristic(this._bleCharUuid);
+
+    this._bleDevice = device;
+    this._bleServer = server;
+    this._bleService = service;
+    this._bleCharacteristic = characteristic;
+    this._bleConnected = true;
+
+    device.addEventListener("gattserverdisconnected", () => {
+      console.warn("[BLE] disconnected");
+      this._bleConnected = false;
+      this._stopBleBlink({ forceOff: false });
+    });
+
+    await this._sendBle("OFF");
+
+    console.log("[BLE] Connected");
+  }
+
+  // =========================
+  // SEND COMMAND
+  // =========================
+  async _sendBle(cmd) {
+    if (!this._bleCharacteristic || this._bleBusy) return;
+
+    this._bleBusy = true;
+
+    try {
+      const data = new TextEncoder().encode(cmd);
+
+      if (this._bleCharacteristic.writeValueWithoutResponse) {
+        await this._bleCharacteristic.writeValueWithoutResponse(data);
+      } else {
+        await this._bleCharacteristic.writeValue(data);
+      }
+    } catch (e) {
+      console.warn("[BLE ERROR]", e);
+    }
+
+    this._bleBusy = false;
+  }
+
+  // =========================
+  // BLINK START
+  // =========================
+  // =========================
+  // BLINK / PULSE CONTROL
+  // =========================
+  _startBleBlink() {
+    if (!this._bleConnected) return;
+    if (this._bleBlinkTimer) return;
+
+    this._bleBlinkGeneration += 1;
+    const gen = this._bleBlinkGeneration;
+
+    this._bleBlinkOn = true;
+    this._sendBle("BLUE");
+
+    const scheduleNext = () => {
+      if (gen !== this._bleBlinkGeneration) return;
+      if (!this._bleConnected) return;
+
+      const wait = this._bleBlinkOn ? this._bleOnMs : this._bleOffMs;
+
+      this._bleBlinkTimer = setTimeout(async () => {
+        if (gen !== this._bleBlinkGeneration) return;
+        if (!this._bleConnected) return;
+
+        this._bleBlinkOn = !this._bleBlinkOn;
+
+        try {
+          await this._sendBle(this._bleBlinkOn ? "BLUE" : "OFF");
+        } catch (err) {
+          console.error("BLE blink send failed:", err);
+        }
+
+        if (gen !== this._bleBlinkGeneration) return;
+        scheduleNext();
+      }, wait);
+    };
+
+    scheduleNext();
+  }
+  _stopBleBlink({ forceOff = true } = {}) {
+    this._bleBlinkGeneration += 1;
+
+    if (this._bleBlinkTimer) {
+      clearTimeout(this._bleBlinkTimer);
+      this._bleBlinkTimer = null;
+    }
+
+    this._bleBlinkOn = false;
+
+    if (forceOff && this._bleConnected) {
+      this._sendBle("OFF").catch((err) => {
+        console.error("BLE OFF send failed:", err);
+      });
+    }
+  }
 }
