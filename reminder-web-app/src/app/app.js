@@ -220,20 +220,27 @@ export class App {
     this.homePanel.style.top = "0";
     this.homePanel.style.right = "0";
     this.homePanel.style.bottom = "0";
+    this.homePanel.style.position = "absolute";
+    this.homePanel.style.left = "50%";
+    this.homePanel.style.top = "50%";
+    this.homePanel.style.transform = "translate(-50%, -50%)";
+    this.homePanel.style.width = "min(920px, calc(100vw - 40px))";
+
     this.homePanel.style.display = "grid";
-    this.homePanel.style.gridTemplateColumns = "repeat(auto-fit, minmax(140px, 1fr))";
-    this.homePanel.style.padding = "120px 20px 120px";
-    this.homePanel.style.maxWidth = "900px";
-    this.homePanel.style.margin = "0 auto";
-    this.homePanel.style.gap = "26px";
-    this.homePanel.style.placeContent = "center";
+    this.homePanel.style.gridTemplateColumns = "repeat(3, minmax(140px, 220px))";
+    this.homePanel.style.gridTemplateRows = "auto auto";
+    this.homePanel.style.justifyContent = "center";
+    this.homePanel.style.alignContent = "center";
+    this.homePanel.style.columnGap = "26px";
+    this.homePanel.style.rowGap = "26px";
+    this.homePanel.style.zIndex = "2";
     this.homePanel.style.zIndex = "2";
 
     const mkTile = (label) => {
       const b = document.createElement("button");
       b.textContent = label;
       b.style.width = "100%";
-      b.style.aspectRatio = "1 / 1";
+      b.style.height = "210px";
       b.style.maxWidth = "220px";
       b.style.fontSize = "22px";
       b.style.fontWeight = "900";
@@ -248,18 +255,12 @@ export class App {
     this.btnConnectLight = document.createElement("button");
     this.btnConnectLight.textContent = "ADD SHOCK DEVICE";
 
-    this.btnConnectLight.style.gridColumn = "1 / span 3";
+    this.btnConnectLight.style.gridColumn = "1 / 4";
     this.btnConnectLight.style.width = "100%";
+    this.btnConnectLight.style.maxWidth = "100%";
     this.btnConnectLight.style.height = "86px";
-    this.btnConnectLight.style.fontSize = "28px";
-    this.btnConnectLight.style.fontWeight = "900";
-    this.btnConnectLight.style.borderRadius = "14px";
-    this.btnConnectLight.style.border = "1px solid rgba(255,255,255,0.18)";
-    this.btnConnectLight.style.background = "#0066cc";
-    this.btnConnectLight.style.color = "white";
-    this.btnConnectLight.style.boxShadow = "0 14px 40px rgba(0,0,0,0.55)";
-    this.btnConnectLight.style.cursor = "pointer";
     this.btnConnectLight.style.justifySelf = "stretch";
+    this.btnConnectLight.style.alignSelf = "stretch";
 
     this.btnHomeSights = mkTile("Sights");
     this.btnHomeSounds = mkTile("Sounds");
