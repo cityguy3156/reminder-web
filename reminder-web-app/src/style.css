@@ -42,6 +42,75 @@ canvas#stimulus {
   z-index: 0;
 }
 
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+#radarWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 40px;
+}
+
+/* Radar circle */
+.radar {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  border: 2px solid rgba(0,255,150,0.3);
+  box-shadow: 0 0 20px rgba(0,255,150,0.2);
+  overflow: hidden;
+}
+
+/* Sweeping line */
+.sweep {
+  position: absolute;
+  width: 50%;
+  height: 2px;
+  background: linear-gradient(to right, rgba(0,255,150,0), rgba(0,255,150,1));
+  top: 50%;
+  left: 50%;
+  transform-origin: left center;
+  animation: sweep 2s linear infinite;
+}
+
+/* Pulse ring */
+.radar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(0,255,150,0.2);
+  animation: pulse 2s ease-out infinite;
+}
+
+/* Text */
+.radarText {
+  font-size: 32px;
+  font-weight: 900;
+  color: rgba(0,255,150,0.9);
+  letter-spacing: 2px;
+}
+
+/* Animations */
+@keyframes sweep {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%   { transform: scale(1); opacity: 0.5; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+
 /* =========================
    OVERLAY LAYERS
 ========================= */

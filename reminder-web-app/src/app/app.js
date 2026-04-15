@@ -7,6 +7,16 @@ import { UiState } from "./ui.js";
 
 export class App {
   constructor() {
+
+    const style = document.createElement("style");
+    style.textContent = `
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    `;
+    document.head.appendChild(style);
+
     // =========================
     // ROOT
     // =========================
@@ -42,6 +52,32 @@ export class App {
       zIndex: "0",
       objectFit: "contain",
     });
+
+    this.searchOverlay = document.createElement("div");
+    this.searchOverlay.style.animation = "fadeIn 0.2s ease";
+
+    Object.assign(this.searchOverlay.style, {
+      position: "fixed",
+      inset: "0",
+      zIndex: "99999",
+      display: "none",
+      alignItems: "center",
+      justifyContent: "center",
+      background: "rgba(0,0,0,0.85)",
+      color: "white",
+      fontSize: "48px",
+      fontWeight: "900",
+      letterSpacing: "2px",
+    });
+
+    this.searchOverlay.innerHTML = `
+      <div id="radarWrap">
+        <div class="radar">
+          <div class="sweep"></div>
+        </div>
+        <div class="radarText">SEARCHING...</div>
+      </div>
+    `;
 
     this.bannerText = document.createElement("div");
     this.bannerText.textContent = "WELCOME TO THE REMINDER";
@@ -629,6 +665,231 @@ export class App {
     spHeader.appendChild(spClose);
     this.speechPanel.appendChild(spHeader);
 
+    // =========================
+    // DEVICE PANEL (NEW)
+    // =========================
+    this.devicePanel = document.createElement("div");
+    Object.assign(this.devicePanel.style, {
+      position: "absolute",
+      left: "50%",
+      top: "50%",
+      alignItems: "center",
+      transform: "translate(-50%, -50%)",
+      width: "min(980px, calc(100vw - 60px))",
+      height: "min(760px, calc(100vh - 60px))",
+      background: "#2a3443",
+      border: "1px solid rgba(255,255,255,0.10)",
+      borderRadius: "18px",
+      boxShadow: "0 22px 70px rgba(0,0,0,0.55)",
+      padding: "18px",
+      display: "none",
+      flexDirection: "column",
+      gap: "18px",
+      zIndex: "2",
+    });
+    this.deviceTitle = document.createElement("div");
+    this.deviceTitle.textContent = "ADD DEVICE";
+    Object.assign(this.deviceTitle.style, {
+      fontSize: "28px",
+      fontWeight: "900",
+      color: "white",
+    });
+
+    this.deviceConnectBtn = document.createElement("button");
+    this.deviceConnectBtn.textContent = "CONNECT";
+    Object.assign(this.deviceConnectBtn.style, {
+      width: "100%",
+      maxWidth: "600px",        // optional cap so it doesn’t get TOO wide
+      height: "70px",
+      fontSize: "22px",
+      fontWeight: "900",
+      borderRadius: "14px",
+      border: "none",
+      background: "#1f6feb",
+      color: "white",
+      cursor: "pointer",
+    });
+
+    this.deviceSectionTitle = document.createElement("div");
+    this.deviceSectionTitle.textContent = "DEVICE CONNECTED";
+
+    Object.assign(this.deviceSectionTitle.style, {
+      width: "100%",
+      maxWidth: "600px",
+      textAlign: "center",
+      fontSize: "14px",
+      fontWeight: "700",
+      letterSpacing: "1px",
+      color: "rgba(255,255,255,0.6)",
+      marginTop: "4px",
+      marginBottom: "4px",
+    });
+
+    // =========================
+    // DEVICE CONNECTED UI
+    // =========================
+    this.deviceControls = document.createElement("div");
+    Object.assign(this.deviceControls.style, {
+      display: "none",            // hidden until connected
+      flexDirection: "column",
+      alignItems: "center",
+      gap: "20px",
+      width: "100%",
+    });
+
+    this.deviceClose = document.createElement("button");
+    this.deviceClose.textContent = "✕";
+    Object.assign(this.deviceClose.style, {
+      position: "absolute",
+      top: "12px",
+      right: "16px",
+      background: "transparent",
+      border: "none",
+      color: "white",
+      fontSize: "20px",
+      cursor: "pointer",
+    });
+
+    this.deviceControlsWrap = document.createElement("div");
+    Object.assign(this.deviceControlsWrap.style, {
+      display: "none",          // 👈 hidden by default
+      flexDirection: "column",
+      alignItems: "center",
+      gap: "18px",
+      width: "100%",
+      marginTop: "20px",        // 👈 spacing below CONNECT button
+    });
+
+    this.devicePanel.appendChild(this.deviceClose);
+    this.devicePanel.appendChild(this.deviceTitle);
+    this.devicePanel.appendChild(this.deviceConnectBtn);
+    this.devicePanel.appendChild(this.deviceSectionTitle); // 👈 NEW
+
+
+    // =========================
+    // FIND RECEIVER BUTTON (full width)
+    // =========================
+    this.deviceFindBtn = document.createElement("button");
+    this.deviceFindBtn.textContent = "FIND RECEIVER";
+    Object.assign(this.deviceFindBtn.style, {
+      width: "100%",
+      maxWidth: "600px",
+      height: "60px",
+      fontSize: "20px",
+      fontWeight: "900",
+      borderRadius: "12px",
+      border: "none",
+      background: "#22c55e",
+      color: "white",
+      cursor: "pointer",
+    });
+
+    // =========================
+    // BEEP BUTTON (half width)
+    // =========================
+    this.deviceBeepBtn = document.createElement("button");
+    this.deviceBeepBtn.textContent = "BEEP";
+    Object.assign(this.deviceBeepBtn.style, {
+      width: "280px",              // 👈 half-ish width
+      height: "60px",
+      fontSize: "20px",
+      fontWeight: "900",
+      borderRadius: "12px",
+      border: "none",
+      background: "#f59e0b",
+      color: "black",
+      cursor: "pointer",
+    });
+
+    // =========================
+    // ROW FOR THINGS
+    // =========================
+    this.deviceThingRow = document.createElement("div");
+    Object.assign(this.deviceThingRow.style, {
+      display: "flex",
+      gap: "20px",
+      justifyContent: "center",
+      width: "100%",
+      marginTop: "10px",
+    });
+
+    this.deviceControlsWrap.appendChild(this.deviceSectionTitle);
+    this.deviceControlsWrap.appendChild(this.deviceFindBtn);
+    this.deviceControlsWrap.appendChild(this.deviceBeepBtn);
+    this.deviceControlsWrap.appendChild(this.deviceThingRow);
+
+    this.devicePanel.appendChild(this.deviceControlsWrap);
+
+// =========================
+// THING BLOCK FACTORY (button + 2 sliders)
+// =========================
+const makeThingBlock = (labelText) => {
+  const wrap = document.createElement("div");
+  Object.assign(wrap.style, {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "10px",
+    width: "220px",
+  });
+
+  // Main button
+  const btn = document.createElement("button");
+  btn.textContent = labelText;
+  Object.assign(btn.style, {
+    width: "100%",
+    height: "60px",
+    fontSize: "18px",
+    fontWeight: "900",
+    borderRadius: "16px",
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.08)",
+    color: "white",
+    cursor: "pointer",
+  });
+
+  // Electric Slider
+  const slider1 = document.createElement("input");
+  slider1.type = "range";
+  slider1.min = "1";
+  slider1.max = "3";
+  slider1.step = "1";
+  slider1.value = "2";
+  slider1.style.width = "100%";
+
+  // Slider 2
+  const slider2 = document.createElement("input");
+  slider2.type = "range";
+  slider2.min = "1";
+  slider2.max = "3";
+  slider2.step = "1";
+  slider2.value = "2";
+  slider2.style.width = "100%";
+
+  wrap.appendChild(btn);
+  wrap.appendChild(slider1);
+
+  return { wrap, btn, slider1, slider2 };
+};
+
+// =========================
+// CREATE THINGS
+// =========================
+this.deviceThing1 = makeThingBlock("ZAP");
+this.deviceThing2 = makeThingBlock("VIBE");
+
+this.deviceThingRow.appendChild(this.deviceThing1.wrap);
+this.deviceThingRow.appendChild(this.deviceThing2.wrap);
+
+// =========================
+// ADD TO PANEL
+// =========================
+// this.devicePanel.appendChild(this.deviceFindBtn);
+// this.devicePanel.appendChild(this.deviceBeepBtn);
+// this.devicePanel.appendChild(this.deviceThingRow);
+
+
+
     this.speechModeRow = document.createElement("div");
     this.speechModeRow.style.display = "flex";
     this.speechModeRow.style.gap = "18px";
@@ -850,13 +1111,39 @@ export class App {
     const isSights = page === "sights";
     const isSounds = page === "sounds";
     const isSpeech = page === "speech";
+    const isDevice = page === "device";
 
     this.homePanel.style.display = isHome ? "grid" : "none";
     this.sightsPanel.style.display = isSights ? "flex" : "none";
     this.soundsPanel.style.display = isSounds ? "flex" : "none";
     this.speechPanel.style.display = isSpeech ? "flex" : "none";
+    this.devicePanel.style.display = isDevice ? "flex" : "none";
+
+    // 🔥 ADD THIS LINE
+    this._updateStartButtonState();
+  }
+  // =========================
+  // START BUTTON CONTROL
+  // =========================
+  _isAnyOverlayOpen() {
+    return (
+      this.sightsPanel?.style.display === "flex" ||
+      this.soundsPanel?.style.display === "flex" ||
+      this.speechPanel?.style.display === "flex" ||
+      this.devicePanel?.style.display === "flex"
+    );
   }
 
+  _updateStartButtonState() {
+    const disabled = this._isAnyOverlayOpen();
+
+    if (!this.btnStart) return;
+
+    this.btnStart.disabled = disabled;
+    this.btnStart.style.pointerEvents = disabled ? "none" : "auto";
+    this.btnStart.style.opacity = disabled ? "0.5" : "1";
+    this.btnStart.style.cursor = disabled ? "not-allowed" : "pointer";
+  }
   // =========================
   // Loudness helpers (RMS normalize)
   // =========================
@@ -983,21 +1270,21 @@ export class App {
 
 // Route the preview through WebAudio so we can apply the same normalization gain
 // (HTMLAudioElement volume is capped at 1.0).
-try {
-  if (!this._primePreviewSrc) {
-    this._primePreviewSrc = this.audioCtx.createMediaElementSource(this.primePlayback);
-    this._primePreviewGain = this.audioCtx.createGain();
-    this._primePreviewSrc.connect(this._primePreviewGain);
-    this._primePreviewGain.connect(this.compressor);
-  }
-  // Use the SAME computed prime gain (normalized * primeRatio), but clamp again for safety.
-  const previewGain = Math.min(30, Math.max(0, this._waPrime?.gain?.gain?.value ?? 1));
-  this._primePreviewGain.gain.value = previewGain;
-  // If the URL changed, force reload.
-  this._primePreviewUrl = url;
-} catch (e) {
-  console.warn("[PRIME PREVIEW] webaudio route failed:", e);
-}
+      try {
+        if (!this._primePreviewSrc) {
+          this._primePreviewSrc = this.audioCtx.createMediaElementSource(this.primePlayback);
+          this._primePreviewGain = this.audioCtx.createGain();
+          this._primePreviewSrc.connect(this._primePreviewGain);
+          this._primePreviewGain.connect(this.compressor);
+        }
+        // Use the SAME computed prime gain (normalized * primeRatio), but clamp again for safety.
+        const previewGain = Math.min(30, Math.max(0, this._waPrime?.gain?.gain?.value ?? 1));
+        this._primePreviewGain.gain.value = previewGain;
+        // If the URL changed, force reload.
+        this._primePreviewUrl = url;
+      } catch (e) {
+        console.warn("[PRIME PREVIEW] webaudio route failed:", e);
+      }
       }
     } catch {}
 
@@ -1010,6 +1297,8 @@ try {
   // Mount
   // =========================
   mount(parent) {
+
+
     parent.appendChild(this.root);
 
     this.stimulus.mount(this.root);
@@ -1048,8 +1337,10 @@ try {
     this.root.appendChild(this.sightsPanel);
     this.root.appendChild(this.soundsPanel);
     this.root.appendChild(this.speechPanel);
+    this.root.appendChild(this.devicePanel);
     this.root.appendChild(this.controls);
     this.root.appendChild(this.recordOverlay);
+    this.root.appendChild(this.searchOverlay);
 
     // Show HUD only while developing (hide in Cloudflare production build)
     if (import.meta.env.DEV) {
@@ -1174,7 +1465,55 @@ try {
       this._updateMediaCounts();
     };
 
-    
+    style.textContent = `
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+
+      @keyframes fadeOut {
+        from { opacity: 1; }
+        to { opacity: 0; }
+      }
+      `;
+      this.deviceFindBtn.onclick = () => {
+        console.log("FIND CLICKED");
+
+        this.searchOverlay.style.display = "flex";
+
+        setTimeout(() => {
+          this.searchOverlay.style.display = "none";
+        }, 5000);
+
+        this._sendBle("FIND");
+      };
+
+      this.deviceBeepBtn.onclick = () => {
+        console.log("BEEP CLICKED");
+        this._sendBle("FIND");
+      };
+
+      // 👇 ADD HERE
+      // this.deviceThing1.btn.onclick = () => {
+      //   console.log("ZAP CLICKED");
+      //   this._pulseBle("BLUE", 500);
+      // };
+      this.deviceThing1.btn.onclick = () => {
+        console.log("ZAP CLICKED");
+        this._flashActionButton(this.deviceThing1.btn, 500, "zap");
+        this._pulseBle("BLUE", 500);
+      };
+
+      // this.deviceThing2.btn.onclick = () => {
+      //   console.log("VIBE CLICKED");
+      //   this._pulseBle("VIBE", 500);
+      // };
+      this.deviceThing2.btn.onclick = () => {
+        console.log("VIBE CLICKED");
+        this._flashActionButton(this.deviceThing2.btn, 500, "vibe");
+        this._pulseBle("VIBE", 500);
+      };
+          
     // Folder uploads for images
     this.imagesFolderInput.onchange = async () => {
       const files = Array.from(this.imagesFolderInput.files || []).filter(f => f.type.startsWith("image/"));
@@ -1295,6 +1634,25 @@ try {
     this.btnModeSequential.onclick = () => this._setSoundMode("sequential");
     this.btnModeOverload.onclick = () => this._setSoundMode("overload");
 
+    this.deviceConnectBtn.onclick = async () => {
+      try {
+        await this._connectBleLight();
+
+        // 👇 SHOW EVERYTHING BELOW
+        this.deviceControlsWrap.style.display = "flex";
+
+        // Optional: update button text
+        this.deviceConnectBtn.textContent = "CONNECTED ✅";
+
+      } catch (e) {
+        console.error(e);
+        alert("Bluetooth failed: " + e.message);
+      }
+    };
+
+    this.deviceClose.onclick = () => {
+      this._showPage("home");
+    };
 
     // If user hits ESC and exits fullscreen while running, stop the program.
     this._onFullscreenChange = () => {
@@ -1314,7 +1672,7 @@ try {
 
     this.btnConnectLight.onclick = async () => {
     try {
-      await this._connectBleLight();
+      this._showPage("device");
     } catch (e) {
       console.error(e);
       alert("Bluetooth failed: " + e.message);
@@ -2627,6 +2985,67 @@ _startPrime() {
     this._bleBusy = false;
   }
 
+  async _pulseBle(cmd, duration = 500) {
+    if (!this._bleConnected) return;
+
+    try {
+      await this._sendBle(cmd);   // start
+      setTimeout(() => {
+        this._sendBle("OFF");     // stop
+      }, duration);
+    } catch (e) {
+      console.error("Pulse BLE failed:", e);
+    }
+  }
+
+  _flashActionButton(btn, activeMs = 500, kind = "default") {
+    if (!btn) return;
+
+    const originalTransition = btn.style.transition || "";
+    const originalTransform = btn.style.transform || "";
+    const originalBoxShadow = btn.style.boxShadow || "";
+    const originalBackground = btn.style.background || "";
+    const originalBorder = btn.style.border || "";
+
+    btn.style.transition = "transform 0.12s ease, box-shadow 0.18s ease, background 0.18s ease, border-color 0.18s ease";
+    btn.style.transform = "scale(0.98)";
+
+    if (kind === "zap") {
+      btn.style.background = "linear-gradient(180deg, #007cf0 0%, #007cf0 100%)";
+      btn.style.border = "1px solid rgba(255,255,255,0.22)";
+      btn.style.boxShadow = "0 0 0 1px rgba(255,255,255,0.10), 0 0 18px rgba(245,158,11,0.45), 0 10px 24px rgba(0,0,0,0.32)";
+    } else if (kind === "vibe") {
+      btn.style.background = "linear-gradient(180deg, #34d399 0%, #10b981 100%)";
+      btn.style.border = "1px solid rgba(255,255,255,0.22)";
+      btn.style.boxShadow = "0 0 0 1px rgba(255,255,255,0.10), 0 0 18px rgba(16,185,129,0.40), 0 10px 24px rgba(0,0,0,0.32)";
+    } else {
+      btn.style.background = "rgba(255,255,255,0.16)";
+      btn.style.border = "1px solid rgba(255,255,255,0.22)";
+      btn.style.boxShadow = "0 0 0 1px rgba(255,255,255,0.10), 0 10px 24px rgba(0,0,0,0.32)";
+    }
+
+    clearTimeout(btn._flashTimer);
+    btn._flashTimer = setTimeout(() => {
+      btn.style.transform = originalTransform;
+      btn.style.boxShadow = originalBoxShadow;
+      btn.style.background = originalBackground;
+      btn.style.border = originalBorder;
+      btn.style.transition = originalTransition;
+    }, activeMs);
+  }
+
+  async _sendBle(msg) {
+    if (!this._bleCharacteristic) return;
+
+    const encoder = new TextEncoder();
+    const data = encoder.encode(msg);
+
+    try {
+      await this._bleCharacteristic.writeValue(data);
+    } catch (e) {
+      console.error("BLE send failed:", e);
+    }
+  }
   // =========================
   // BLINK START
   // =========================
@@ -2641,7 +3060,7 @@ _startPrime() {
     const gen = this._bleBlinkGeneration;
 
     this._bleBlinkOn = true;
-    this._sendBle("BLUE");
+    this._sendBle();
 
     const scheduleNext = () => {
       if (gen !== this._bleBlinkGeneration) return;
