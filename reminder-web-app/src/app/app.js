@@ -1896,7 +1896,7 @@ async _primeCameraPermission() {
       let edge = { on: false, off: false };
 
       if (hasFace) {
-        edge = this.eyeTrigger.update(eyesOk, nowS);
+        edge = this.eyeTrigger.update(this.vision.eyesOk, nowS);
       } else {
         // No face should behave like a fail state too.
         // Reset debounce state so reacquiring a face doesn't leave stale edge state.
@@ -3052,7 +3052,7 @@ _startPrime() {
   // =========================
   // BLINK / PULSE CONTROL
   // =========================
-  _startBleBlink() {
+  async _startBleBlink() {
     if (!this._bleConnected) return;
     if (this._bleBlinkTimer) return;
 
@@ -3060,7 +3060,12 @@ _startPrime() {
     const gen = this._bleBlinkGeneration;
 
     this._bleBlinkOn = true;
-    this._sendBle();
+
+    try {
+      await this._sendBle("BLUE"); // 🔥 SEND IMMEDIATELY
+    } catch (err) {
+      console.error("Initial BLE send failed:", err);
+    }
 
     const scheduleNext = () => {
       if (gen !== this._bleBlinkGeneration) return;

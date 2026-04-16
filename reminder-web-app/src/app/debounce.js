@@ -1,9 +1,8 @@
 // src/app/debounce.js
 console.log("debounce.js loaded");
 
-
 export class ClosedEdgeTrigger {
-  constructor({ closeDelayS = 0.12, openDelayS = 0.12 } = {}) {
+  constructor({ closeDelayS = 0.02, openDelayS = 0.05 } = {}) {
     this.closeDelayS = closeDelayS;
     this.openDelayS = openDelayS;
 
