@@ -184,6 +184,8 @@ export class App {
 
     // Prime sound
     this._primeAudio = null;
+    this._primeBuffer = null;
+    this._primeSource = null;
 
     // Loudness goal:
     // - normalize EACH normal track to target RMS
@@ -1261,8 +1263,11 @@ this.deviceThingRow.appendChild(this.deviceThing2.wrap);
     const rms = await this._analyzeRMS(file);
 
     const url = URL.createObjectURL(file);
+    // Decode once into a seamless WebAudio buffer
+    const arr = await file.arrayBuffer();
+    this._primeBuffer = await this.audioCtx.decodeAudioData(arr);
+    // Keep HTML audio ONLY for preview controls
     const a = new Audio(url);
-    a.loop = true;
     a.preload = "auto";
     a.volume = 1.0;
 
@@ -2325,46 +2330,52 @@ async _primeCameraPermission() {
     }
   }
 
-_startPrime() {
-  if (!this._primeAudio || !this._waPrime?.gain?.gain) return;
+  _startPrime() {
+    if (!this._primeBuffer || !this._waPrime?.gain) return;
 
-  // 1) Set the correct target gain first (this sets gain.value)
-  this._applyPrimeGainForMode();
+    try {
+      // Stop previous source if any
+      if (this._primeSource) {
+        try { this._primeSource.stop(); } catch {}
+        try { this._primeSource.disconnect(); } catch {}
+      }
 
-  // 2) Fade-in to mask startup artifacts
-  const t0 = this.audioCtx.currentTime;
-  const g = this._waPrime.gain.gain;
-  const target = g.value;
+      const src = this.audioCtx.createBufferSource();
+      src.buffer = this._primeBuffer;
 
-  g.cancelScheduledValues(t0);
-  g.setValueAtTime(0.0001, t0);
-  g.linearRampToValueAtTime(target, t0 + 0.08);
+      // TRUE seamless looping
+      src.loop = true;
 
-  // 3) Play
-  try {
-    this._primeAudio.loop = true;
-    if (this._primeAudio.paused) this._primeAudio.currentTime = 0;
-    this._primeAudio.play().catch(() => {});
-  } catch {}
-}
-  _stopPrime({ keepLoaded } = { keepLoaded: true }) {
-    if (this._primeAudio) {
-      try {
-        this._primeAudio.pause();
-        this._primeAudio.currentTime = 0;
-      } catch {}
+      // Trim tiny edge artifacts
+      src.loopStart = 0.02;
+      src.loopEnd = Math.max(0.03, this._primeBuffer.duration - 0.02);
+
+      src.connect(this._waPrime.gain);
+
+      src.start(0);
+
+      this._primeSource = src;
+
+      console.log("[PRIME] Seamless WebAudio loop started");
+
+    } catch (e) {
+      console.warn("[PRIME] start failed:", e);
     }
+  }
+  _stopPrime({ keepLoaded = true } = {}) {
+    try {
+      if (this._primeSource) {
+        this._primeSource.stop();
+        this._primeSource.disconnect();
+      }
+    } catch {}
+
+    this._primeSource = null;
 
     if (!keepLoaded) {
-      // Also clear preview UI
-      if (this.primePlayback) { try { this.primePlayback.pause(); } catch {} this.primePlayback.removeAttribute('src'); this.primePlayback.load?.(); this.primePlayback.style.display = 'none'; }
-      if (this._waPrime) {
-        try { this._waPrime.src.disconnect(); } catch {}
-        try { this._waPrime.gain.disconnect(); } catch {}
-        try { if (this._waPrime.url?.startsWith("blob:")) URL.revokeObjectURL(this._waPrime.url); } catch {}
-      }
-      this._waPrime = null;
+      this._primeBuffer = null;
       this._primeAudio = null;
+      this._waPrime = null;
     }
   }
   // Wait until an <audio> element has buffered enough to play without thrashing.
