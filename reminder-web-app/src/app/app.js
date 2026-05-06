@@ -26,7 +26,29 @@ export class App {
     this.root.style.inset = "0";
     this.root.style.background = "#0b1220";
     this.root.style.overflow = "hidden";
+    // =========================
+    // DONATE BUTTON
+    // =========================
+    this.btnDonate = document.createElement("a");
+    this.btnDonate.textContent = "Donate";
+    this.btnDonate.href = "https://www.paypal.com/donate/?business=BXWP8GM865BFJ&no_recurring=0&currency_code=USD";
+    this.btnDonate.target = "_blank";
+    this.btnDonate.rel = "noopener noreferrer";
 
+    Object.assign(this.btnDonate.style, {
+      position: "absolute",
+      top: "18px",
+      right: "18px",
+      zIndex: "5",
+      padding: "10px 16px",
+      borderRadius: "999px",
+      background: "#ffc439",
+      color: "#111",
+      fontSize: "16px",
+      fontWeight: "900",
+      textDecoration: "none",
+      boxShadow: "0 10px 28px rgba(0,0,0,0.35)",
+    });
     // ---------- Brand banner ----------
     this.banner = document.createElement("div");
     this.banner.id = "brandBanner";
@@ -1332,6 +1354,7 @@ this.deviceThingRow.appendChild(this.deviceThing2.wrap);
 
     // Add banner to UI (visible on menus)
     this.root.appendChild(this.banner);
+    this.root.appendChild(this.btnDonate);
 
     this.root.appendChild(this.homePanel);
     this.root.appendChild(this.sightsPanel);
@@ -1661,6 +1684,41 @@ this.deviceThingRow.appendChild(this.deviceThing2.wrap);
       }
     };
     document.addEventListener("fullscreenchange", this._onFullscreenChange);
+    // =========================
+    // DOUBLE TAP TO STOP
+    // =========================
+    this._lastTouchEnd = 0;
+
+    this._onDoubleTapStop = (e) => {
+      if (!this.running) return;
+
+      const now = Date.now();
+
+      // Detect double tap within 350ms
+      if (now - this._lastTouchEnd < 350) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        console.log("[TOUCH] Double tap stop");
+
+        this.stop();
+      }
+
+      this._lastTouchEnd = now;
+    };
+
+    // Touchscreens
+    document.addEventListener(
+      "touchend",
+      this._onDoubleTapStop,
+      { passive: false }
+    );
+
+    // Mouse double-click fallback
+    document.addEventListener(
+      "dblclick",
+      this._onDoubleTapStop
+    );
 
     this._setSoundMode(this.soundMode);
     this._updateSoundModeRowVisibility();
@@ -1800,6 +1858,7 @@ async _primeCameraPermission() {
     // Hide header + start button while running
     if (this.banner) this.banner.style.display = "none";
     if (this.controls) this.controls.style.display = "none";
+    if (this.btnDonate) this.btnDonate.style.display = "none";
     // If a picker overlay is somehow left open, force-hide it so it can’t block clicks.
     try {
       const ov = document.querySelector(".pickOverlay");
@@ -1850,6 +1909,7 @@ async _primeCameraPermission() {
 
     if (this.banner) this.banner.style.display = "flex";
     this.controls.style.display = "flex";
+    if (this.btnDonate) this.btnDonate.style.display = "block";
     // Show header + start button again
     if (this.banner) this.banner.style.display = "flex";
     if (this.controls) this.controls.style.display = "flex";
@@ -1908,21 +1968,25 @@ async _primeCameraPermission() {
 
       // ===== BLE CONTROL =====
       // Only send while eyes are actually closed
+      const pulseActive = performance.now() < (this._blePulseUntil || 0);
+
+      // Only send while eyes are actually closed
       const wantedBlink =
         this.running &&
         this._bleConnected &&
-        eyesFail;
+        eyesFail &&
+        !pulseActive;
 
       if (wantedBlink) {
         this._startBleBlink();
-      } else if (this._bleConnected) {
+      } else if (this._bleConnected && !pulseActive && this._bleBlinkTimer) {
         this._stopBleBlink({ forceOff: true });
       }
+
       // Only force OFF when eyes are clearly open again and there is no active pulse.
-      const pulseActive = performance.now() < this._blePulseUntil;
       const eyesClearlyOpen = hasFace && eyesOk && !edge.on && !eyesFail;
 
-      if (this._bleConnected && eyesClearlyOpen && !pulseActive) {
+      if (this._bleConnected && eyesClearlyOpen && !pulseActive && this._bleBlinkTimer) {
         this._stopBleBlink({ forceOff: true });
       }
 
@@ -2497,10 +2561,18 @@ _startPrime() {
 
     this._speechHudLine = ok ? "✅ Correct!" : `❌ Heard: "${heard || "(nothing)"}"`;
 
-    if (ok) this._playBing();
-    else this._playBuzz();
+    if (ok) {
+      this._playBing();
 
-    return ok;
+      // PASS = 1 second VIBE
+      this._pulseBle("VIBE", 1000);
+
+    } else {
+      this._playBuzz();
+
+      // FAIL = 1/5 second BLUE
+      this._pulseBle("BLUE", 200);
+    }
   }
 
 
@@ -2985,17 +3057,36 @@ _startPrime() {
     this._bleBusy = false;
   }
 
-  async _pulseBle(cmd, duration = 500) {
-    if (!this._bleConnected) return;
-
-    try {
-      await this._sendBle(cmd);   // start
-      setTimeout(() => {
-        this._sendBle("OFF");     // stop
-      }, duration);
-    } catch (e) {
-      console.error("Pulse BLE failed:", e);
+  async _pulseBle(cmd, duration = 700) {
+    if (!this._bleConnected || !this._bleCharacteristic) {
+      console.warn("[BLE] Cannot pulse; not connected");
+      return;
     }
+
+    console.log("[BLE] FORCE PULSE START:", cmd);
+
+    this._blePulseUntil = performance.now() + duration + 300;
+
+    // Wait briefly if another BLE write is happening
+    let tries = 0;
+    while (this._bleBusy && tries < 20) {
+      await this._sleep(25);
+      tries++;
+    }
+
+    await this._sendBle(cmd);
+
+    setTimeout(async () => {
+      let offTries = 0;
+      while (this._bleBusy && offTries < 20) {
+        await this._sleep(25);
+        offTries++;
+      }
+
+      console.log("[BLE] FORCE PULSE OFF");
+      await this._sendBle("OFF");
+      this._blePulseUntil = 0;
+    }, duration);
   }
 
   _flashActionButton(btn, activeMs = 500, kind = "default") {
