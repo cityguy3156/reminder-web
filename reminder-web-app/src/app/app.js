@@ -176,6 +176,11 @@ export class App {
     // SOUND STATE
     // =========================
     this._loopAudios = [];
+    // Spoken loop phrases
+    this.soundPhrases = [];
+    this._soundPhraseLoopToken = 0;
+    this._soundPhraseIndex = 0;
+    this._soundPhraseGapMs = 750;    
     this.soundMode = "overload"; // "sequential" | "overload"
     this._seqIndex = 0;
 
@@ -192,7 +197,7 @@ export class App {
     // - in overload, scale normals by 1/N so combined "normal bed" stays near target RMS
     // - prime is normalized too, then multiplied by primeRatio (50% louder)
     this._targetRms = 0.10;
-    this._primeRatio = 2.00;
+    this._primeRatio = 0.50;
 
     // ---- WebAudio pipeline ----
     this.audioCtx = null;
@@ -655,7 +660,72 @@ export class App {
     };
     this.primeCard.appendChild(this.primePlayback);
     this.soundsPanel.appendChild(this.primeCard);
+    // =========================
+    // SPOKEN LOOP PHRASES CARD
+    // =========================
+    this.soundPhraseCard = document.createElement("div");
+    this.soundPhraseCard.className = "soundCard";
 
+    this.soundPhraseTitle = document.createElement("div");
+    this.soundPhraseTitle.className = "soundCardTitle";
+    this.soundPhraseTitle.textContent = "SPOKEN LOOP PHRASES";
+
+    this.soundPhraseHelp = document.createElement("div");
+    this.soundPhraseHelp.className = "soundCardHelp";
+    this.soundPhraseHelp.textContent = "These phrases will be read out loud on loop until the program ends.";
+
+    this.soundPhraseRow = document.createElement("div");
+    this.soundPhraseRow.style.display = "flex";
+    this.soundPhraseRow.style.gap = "10px";
+    this.soundPhraseRow.style.alignItems = "center";
+
+    this.soundPhraseInput = document.createElement("input");
+    this.soundPhraseInput.type = "text";
+    this.soundPhraseInput.placeholder = "Enter phrase...";
+    this.soundPhraseInput.style.flex = "1";
+    this.soundPhraseInput.style.height = "44px";
+    this.soundPhraseInput.style.borderRadius = "12px";
+    this.soundPhraseInput.style.border = "1px solid rgba(255,255,255,0.10)";
+    this.soundPhraseInput.style.background = "rgba(0,0,0,0.18)";
+    this.soundPhraseInput.style.color = "white";
+    this.soundPhraseInput.style.padding = "0 14px";
+
+    this.btnAddSoundPhrase = document.createElement("button");
+    this.btnAddSoundPhrase.textContent = "+";
+    this.btnAddSoundPhrase.style.width = "44px";
+    this.btnAddSoundPhrase.style.height = "44px";
+    this.btnAddSoundPhrase.style.borderRadius = "12px";
+    this.btnAddSoundPhrase.style.border = "1px solid rgba(255,255,255,0.10)";
+    this.btnAddSoundPhrase.style.background = "rgba(46,160,67,0.75)";
+    this.btnAddSoundPhrase.style.color = "white";
+    this.btnAddSoundPhrase.style.fontSize = "22px";
+    this.btnAddSoundPhrase.style.fontWeight = "900";
+    this.btnAddSoundPhrase.style.cursor = "pointer";
+
+    this.soundPhraseRow.appendChild(this.soundPhraseInput);
+    this.soundPhraseRow.appendChild(this.btnAddSoundPhrase);
+
+    this.soundPhraseList = document.createElement("div");
+    this.soundPhraseList.style.marginTop = "10px";
+    this.soundPhraseList.style.padding = "10px";
+    this.soundPhraseList.style.border = "1px solid rgba(255,255,255,0.10)";
+    this.soundPhraseList.style.borderRadius = "14px";
+    this.soundPhraseList.style.background = "rgba(0,0,0,0.12)";
+    this.soundPhraseList.style.color = "white";
+    this.soundPhraseList.style.maxHeight = "150px";
+    this.soundPhraseList.style.overflow = "auto";
+
+    this.btnClearSoundPhrases = document.createElement("button");
+    this.btnClearSoundPhrases.textContent = "Clear Spoken Phrases";
+    this.btnClearSoundPhrases.style.marginTop = "10px";
+
+    this.soundPhraseCard.appendChild(this.soundPhraseTitle);
+    this.soundPhraseCard.appendChild(this.soundPhraseHelp);
+    this.soundPhraseCard.appendChild(this.soundPhraseRow);
+    this.soundPhraseCard.appendChild(this.soundPhraseList);
+    this.soundPhraseCard.appendChild(this.btnClearSoundPhrases);
+
+    this.soundsPanel.appendChild(this.soundPhraseCard);
     // =========================
     // SPEECH PANEL
     // =========================
@@ -1069,8 +1139,21 @@ this.deviceThingRow.appendChild(this.deviceThing2.wrap);
     this.repeatBox.appendChild(this.speechHint);
     this.speechPanel.appendChild(this.repeatBox);
 
-
     // =========================
+    // REMINDER CAMERA RECORDING STATE
+    // =========================
+    this._cameraRecorder = null;
+    this._cameraStream = null;
+    this._cameraChunks = [];
+    this._cameraBlob = null;
+    this._cameraMimeType = "";
+    this._cameraRecording = false;
+    this._cameraTimer = null;
+    this._cameraCountdownTimer = null;
+    this._cameraSecondsLeft = 15;
+    this._cameraCancelNoMenu = false;
+    this._pausedByCameraMenu = false;
+    this._cameraCancelNoMenu = false;
 
     // Fullscreen recording overlay (obvious + blocks interaction)
     this.recordOverlay = document.createElement("div");
@@ -1096,6 +1179,31 @@ this.deviceThingRow.appendChild(this.deviceThing2.wrap);
     `;
     this._recTimerEl = this.recordOverlay.querySelector("#recTimer");
     this.recordOverlay.querySelector("#stopRecBtn").onclick = () => this._stopPrimeRecording();
+    // =========================
+    // CAMERA RECORDING OVERLAY
+    // =========================
+    this.cameraRecordOverlay = document.createElement("div");
+    this.cameraRecordOverlay.id = "cameraRecordOverlay";
+
+    Object.assign(this.cameraRecordOverlay.style, {
+      position: "fixed",
+      inset: "0",
+      zIndex: "100000",
+      display: "none",
+      alignItems: "center",
+      justifyContent: "center",
+      background: "rgba(120,0,0,0.92)",
+      color: "white",
+      fontFamily: "system-ui, sans-serif",
+    });
+
+    this.cameraRecordOverlay.innerHTML = `
+      <div style="text-align:center; padding:34px 42px; border-radius:22px; background:rgba(0,0,0,0.35); border:2px solid rgba(255,255,255,0.25); box-shadow:0 20px 70px rgba(0,0,0,0.55);">
+        <div id="cameraRecordTitle" style="font-size:54px; font-weight:1000;">● RECORDING</div>
+        <div id="cameraRecordSub" style="font-size:24px; font-weight:800; margin-top:12px;">Camera is recording</div>
+        <div id="cameraRecordTimer" style="font-size:46px; font-weight:1000; margin-top:18px;">15</div>
+      </div>
+    `;
     // BIND TICK
     // =========================
     this._tick = this._tick.bind(this);
@@ -1128,6 +1236,334 @@ this.deviceThingRow.appendChild(this.deviceThing2.wrap);
   // =========================
   // Navigation
   // =========================
+_pickCameraMimeType() {
+  const options = [
+    "video/mp4;codecs=h264",
+    "video/mp4",
+    "video/webm;codecs=vp9",
+    "video/webm;codecs=vp8",
+    "video/webm",
+  ];
+
+  for (const type of options) {
+    if (MediaRecorder.isTypeSupported(type)) return type;
+  }
+
+  return "";
+}
+
+async _startCameraReminderRecording() {
+  if (this._cameraRecording) return;
+
+  this._cameraRecording = true;
+  this._cameraChunks = [];
+  this._cameraBlob = null;
+  this._cameraSecondsLeft = 15;
+
+  try {
+    this._cameraMimeType = this._pickCameraMimeType();
+
+    this._cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: true,
+    });
+
+    const options = this._cameraMimeType ? { mimeType: this._cameraMimeType } : undefined;
+
+    this._cameraRecorder = new MediaRecorder(this._cameraStream, options);
+
+    this._cameraRecorder.ondataavailable = (event) => {
+      if (event.data && event.data.size > 0) {
+        this._cameraChunks.push(event.data);
+      }
+    };
+
+    this._cameraRecorder.onstop = () => {
+      this._finishCameraReminderRecording();
+    };
+
+    this._showCameraRecordingBanner();
+    this._cameraRecorder.start();
+
+    this._cameraCountdownTimer = setInterval(() => {
+      this._cameraSecondsLeft -= 1;
+      const timer = this.cameraRecordOverlay?.querySelector("#cameraRecordTimer");
+      if (timer) timer.textContent = String(Math.max(0, this._cameraSecondsLeft));
+    }, 1000);
+
+    this._cameraTimer = setTimeout(() => {
+      this._stopCameraReminderRecording();
+    }, 15000);
+
+  } catch (err) {
+    console.error("[CAMERA RECORDING] failed:", err);
+    this._cleanupCameraRecording();
+    alert("Camera recording failed. Check camera/microphone permission.");
+  }
+}
+_cancelCameraRecordingNoMenu() {
+  this._cameraCancelNoMenu = true;
+
+  try { clearTimeout(this._cameraTimer); } catch {}
+  try { clearInterval(this._cameraCountdownTimer); } catch {}
+
+  this._cameraTimer = null;
+  this._cameraCountdownTimer = null;
+
+  if (this._cameraRecorder && this._cameraRecorder.state === "recording") {
+    this._cameraRecorder.stop();
+  } else {
+    this._cleanupCameraRecording();
+  }
+}
+_stopCameraReminderRecording() {
+  try { clearTimeout(this._cameraTimer); } catch {}
+  try { clearInterval(this._cameraCountdownTimer); } catch {}
+
+  this._cameraTimer = null;
+  this._cameraCountdownTimer = null;
+
+  if (this._cameraRecorder && this._cameraRecorder.state === "recording") {
+    this._cameraRecorder.stop();
+  } else {
+    this._finishCameraReminderRecording();
+  }
+}
+
+_finishCameraReminderRecording() {
+  try { clearTimeout(this._cameraTimer); } catch {}
+  try { clearInterval(this._cameraCountdownTimer); } catch {}
+
+  const type = this._cameraMimeType || "video/webm";
+  this._cameraBlob = new Blob(this._cameraChunks, { type });
+
+  try {
+    this._cameraStream?.getTracks()?.forEach(t => t.stop());
+  } catch {}
+
+  this._cameraStream = null;
+  this._cameraRecorder = null;
+  this._cameraRecording = false;
+
+  if (this._cameraCancelNoMenu) {
+    this._cameraCancelNoMenu = false;
+    this._discardCameraRecording();
+    this._cleanupCameraRecording();
+    return;
+  }
+
+  this._pauseProgramForCameraMenu();
+  this._showCameraCompletedMenu();
+}
+
+_showCameraRecordingBanner() {
+  if (!this.cameraRecordOverlay) return;
+  this._resetCameraOverlay();
+  this.cameraRecordOverlay.style.display = "flex";
+  this.cameraRecordOverlay.style.background = "rgba(0,0,0,0.15)";
+
+  const title = this.cameraRecordOverlay.querySelector("#cameraRecordTitle");
+  const sub = this.cameraRecordOverlay.querySelector("#cameraRecordSub");
+  const timer = this.cameraRecordOverlay.querySelector("#cameraRecordTimer");
+
+  if (title) title.textContent = "● RECORDING";
+  if (sub) sub.textContent = "Camera is recording";
+  if (timer) timer.textContent = "15";
+}
+
+_showCameraCompletedMenu() {
+  if (!this.cameraRecordOverlay) return;
+
+  this.cameraRecordOverlay.style.display = "flex";
+  this.cameraRecordOverlay.style.background = "rgba(0,0,0,0.92)";
+
+  this.cameraRecordOverlay.innerHTML = `
+    <div id="cameraCompletedCard" style="
+      text-align:center;
+      width:min(900px, calc(100vw - 40px));
+      padding:34px;
+      border-radius:22px;
+      background:rgba(20,30,45,0.96);
+      border:2px solid rgba(255,255,255,0.22);
+      box-shadow:0 24px 80px rgba(0,0,0,0.65);
+    ">
+      <div style="
+        font-size:48px;
+        font-weight:1000;
+        margin-bottom:30px;
+      ">
+        RECORDING COMPLETED
+      </div>
+
+      <div style="
+        display:flex;
+        gap:22px;
+        justify-content:center;
+      ">
+        <button id="cameraExitBtn" style="${this._cameraMenuBtnStyle()}">
+          EXIT
+        </button>
+
+        <button id="cameraSaveBtn" style="${this._cameraMenuBtnStyle()}">
+          SAVE
+        </button>
+
+        <button id="cameraResumeBtn" style="${this._cameraMenuBtnStyle()}">
+          RESUME
+        </button>
+      </div>
+
+      <div style="
+        display:grid;
+        grid-template-columns:1fr 1fr 1fr;
+        gap:22px;
+        margin-top:18px;
+        font-size:18px;
+        font-weight:800;
+        opacity:0.9;
+      ">
+        <div>Ends the program</div>
+        <div>Save the recording as a video</div>
+        <div>Unpauses the program</div>
+      </div>
+    </div>
+  `;
+
+  this.cameraRecordOverlay.querySelector("#cameraExitBtn").onclick = () => {
+    this._discardCameraRecording();
+    this.cameraRecordOverlay.style.display = "none";
+    this.stop();
+  };
+
+  this.cameraRecordOverlay.querySelector("#cameraSaveBtn").onclick = () => {
+    this._saveCameraRecording();
+  };
+
+  this.cameraRecordOverlay.querySelector("#cameraResumeBtn").onclick = () => {
+    this._discardCameraRecording();
+    this.cameraRecordOverlay.style.display = "none";
+
+    // IMPORTANT:
+    // Restore original recording overlay HTML
+    this._resetCameraOverlay();
+
+    this._resumeProgramAfterCameraMenu();
+  };
+}
+_resetCameraOverlay() {
+  this.cameraRecordOverlay.innerHTML = `
+    <div style="
+      text-align:center;
+      padding:34px 42px;
+      border-radius:22px;
+      background:rgba(0,0,0,0.82);
+      border:2px solid rgba(255,255,255,0.25);
+      box-shadow:0 20px 70px rgba(0,0,0,0.55);
+    ">
+      <div id="cameraRecordTitle" style="
+        font-size:54px;
+        font-weight:1000;
+      ">
+        ● RECORDING
+      </div>
+
+      <div id="cameraRecordSub" style="
+        font-size:24px;
+        font-weight:800;
+        margin-top:12px;
+      ">
+        Camera is recording
+      </div>
+
+      <div id="cameraRecordTimer" style="
+        font-size:46px;
+        font-weight:1000;
+        margin-top:18px;
+      ">
+        15
+      </div>
+    </div>
+  `;
+}
+_cameraMenuBtnStyle() {
+  return `
+    width:220px;
+    height:82px;
+    border-radius:16px;
+    border:2px solid rgba(255,255,255,0.25);
+    background:#1f6feb;
+    color:white;
+    font-size:28px;
+    font-weight:1000;
+    cursor:pointer;
+  `;
+}
+
+_saveCameraRecording() {
+  if (!this._cameraBlob) return;
+
+  const extension = this._cameraBlob.type.includes("mp4") ? "mp4" : "webm";
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+
+  const url = URL.createObjectURL(this._cameraBlob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `reminder-recording-${timestamp}.${extension}`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+_discardCameraRecording() {
+  this._cameraBlob = null;
+  this._cameraChunks = [];
+}
+
+_pauseProgramForCameraMenu() {
+  this._pausedByCameraMenu = this.running;
+
+  if (!this.running) return;
+
+  this.running = false;
+
+  try { this._stopBleBlink({ forceOff: true }); } catch {}
+  try { this._stopAllSounds({ keepLoaded: true }); } catch {}
+  try { this._stopPrime({ keepLoaded: true }); } catch {}
+  try { this._stopRepeatGame(); } catch {}
+  try { this._cancelSpeech(); } catch {}
+}
+
+_resumeProgramAfterCameraMenu() {
+  if (!this._pausedByCameraMenu) return;
+
+  this._pausedByCameraMenu = false;
+  this.running = true;
+
+  try { this._startAllSounds(); } catch {}
+  try { this._startPrime(); } catch {}
+
+  if (this.speechMode === "repeat") {
+    try { this._startRepeatGameLoop(); } catch {}
+  }
+}
+
+_cleanupCameraRecording() {
+  try { clearTimeout(this._cameraTimer); } catch {}
+  try { clearInterval(this._cameraCountdownTimer); } catch {}
+  try { this._cameraStream?.getTracks()?.forEach(t => t.stop()); } catch {}
+
+  this._cameraTimer = null;
+  this._cameraCountdownTimer = null;
+  this._cameraStream = null;
+  this._cameraRecorder = null;
+  this._cameraRecording = false;
+
+  if (this.cameraRecordOverlay) {
+    this.cameraRecordOverlay.style.display = "none";
+  }
+}  
   _showPage(page) {
     this.ui.setPage(page);
 
@@ -1368,6 +1804,7 @@ this.deviceThingRow.appendChild(this.deviceThing2.wrap);
     this.root.appendChild(this.devicePanel);
     this.root.appendChild(this.controls);
     this.root.appendChild(this.recordOverlay);
+    this.root.appendChild(this.cameraRecordOverlay);
     this.root.appendChild(this.searchOverlay);
 
     // Show HUD only while developing (hide in Cloudflare production build)
@@ -1431,7 +1868,10 @@ this.deviceThingRow.appendChild(this.deviceThing2.wrap);
     // Voice list (populate after permissions so labels are available)
     this._refreshVoices();
     if ("speechSynthesis" in window) {
-      window.speechSynthesis.onvoiceschanged = () => this._refreshVoices();
+      window.speechSynthesis.onvoiceschanged = () => {
+        this._refreshVoices();
+        console.log("[AVAILABLE VOICES]", window.speechSynthesis.getVoices().map(v => v.name));
+      };
     }
     this.voiceSelect.onchange = () => {
       this.speechVoiceURI = this.voiceSelect.value;
@@ -1590,6 +2030,23 @@ this.deviceThingRow.appendChild(this.deviceThing2.wrap);
     this._renderWordsList();
 
     // Sounds upload (normal)
+    // Spoken loop phrase controls
+    this.btnAddSoundPhrase.onclick = () => this._tryAddSoundPhraseFromInput();
+
+    this.btnClearSoundPhrases.onclick = () => {
+      this.soundPhrases = [];
+      this._renderSoundPhraseList();
+    };
+
+    this.soundPhraseInput.addEventListener("keydown", (e) => {
+      e.stopPropagation();
+      if (e.key === "Enter") {
+        e.preventDefault();
+        this._tryAddSoundPhraseFromInput();
+      }
+    });
+
+    this._renderSoundPhraseList();    
     this.btnUploadSounds.onclick = () => this._showUploadChoice({ kind: "sounds" });
     this.soundsInput.onchange = async () => {
       const files = Array.from(this.soundsInput.files || []).filter(f => f.type.startsWith("audio/"));
@@ -1681,13 +2138,68 @@ this.deviceThingRow.appendChild(this.deviceThing2.wrap);
     this.deviceClose.onclick = () => {
       this._showPage("home");
     };
+    window.addEventListener("keydown", async (e) => {
+      const tag = document.activeElement?.tagName?.toLowerCase();
+      const typing = tag === "input" || tag === "textarea" || tag === "select";
+
+      if (typing) return;
+      if (e.repeat) return;
+
+      if (e.key === "Escape") {
+
+        // If camera recording is active,
+        // kill EVERYTHING immediately.
+        if (this._cameraRecording) {
+          e.preventDefault();
+
+          this._cancelCameraRecordingNoMenu();
+
+          // Also stop the program itself
+          this.stop();
+
+          return;
+        }
+      }
+
+      if (e.key.toLowerCase() === "c") {
+        e.preventDefault();
+        await this._startCameraReminderRecording();
+      }
+    });
 
     // If user hits ESC and exits fullscreen while running, stop the program.
     this._onFullscreenChange = () => {
-      if (this.running && !document.fullscreenElement) {
-        this.stop();
+      if (!document.fullscreenElement) {
+        if (this._cameraRecording) {
+          this._cancelCameraRecordingNoMenu();
+        }
+
+        if (this.running) {
+          this.stop();
+        }
       }
     };
+    // Tap screen once to start the 15-second camera recording.
+    // Useful for tablets where there is no keyboard.
+    this.root.addEventListener("pointerup", async (e) => {
+      // Only trigger while the program is running.
+      if (!this.running) return;
+
+      // Do not trigger while already recording.
+      if (this._cameraRecording) return;
+
+      // Do not trigger from menus/buttons/inputs.
+      const tag = e.target?.tagName?.toLowerCase();
+      if (tag === "button" || tag === "input" || tag === "textarea" || tag === "select" || tag === "a") {
+        return;
+      }
+
+      // Do not trigger if one of the setup panels is open.
+      if (this._isAnyOverlayOpen()) return;
+
+      e.preventDefault();
+      await this._startCameraReminderRecording();
+    });    
     document.addEventListener("fullscreenchange", this._onFullscreenChange);
     // =========================
     // DOUBLE TAP TO STOP
@@ -1872,6 +2384,7 @@ async _primeCameraPermission() {
 
     // Start audio ONLY on Start
     this._startAllSounds();
+    this._startSoundPhraseLoop();
     this._startPrime();
 
     // Speech game start
@@ -1893,6 +2406,10 @@ async _primeCameraPermission() {
   }
 
   stop() {
+    if (this._cameraRecording) {
+      this._cancelCameraRecordingNoMenu();
+    }
+    this._stopSoundPhraseLoop();
     this._stopBleBlink({ forceOff: true });
     this.homePanel.style.display = "grid";
     this.sightsPanel.style.display = "none";
@@ -2046,6 +2563,130 @@ async _primeCameraPermission() {
     requestAnimationFrame(this._tick);
   }
 
+    _tryAddSoundPhraseFromInput() {
+    const text = String(this.soundPhraseInput?.value ?? "").trim();
+    if (!text) return;
+
+    const exists = this.soundPhrases.some(
+      p => String(p).toLowerCase() === text.toLowerCase()
+    );
+
+    if (!exists) {
+      this.soundPhrases.push(text);
+    }
+
+    this.soundPhraseInput.value = "";
+    this._renderSoundPhraseList();
+
+    if (this.running) {
+      this._startSoundPhraseLoop();
+    }
+  }
+
+  _renderSoundPhraseList() {
+    if (!this.soundPhraseList) return;
+
+    this.soundPhraseList.innerHTML = "";
+
+    if (!this.soundPhrases.length) {
+      this.soundPhraseList.innerHTML = `
+        <div style="opacity:0.65; font-weight:700;">
+          No spoken phrases yet.
+        </div>
+      `;
+      return;
+    }
+
+    this.soundPhrases.forEach((phrase, index) => {
+      const row = document.createElement("div");
+      row.style.display = "flex";
+      row.style.alignItems = "center";
+      row.style.justifyContent = "space-between";
+      row.style.gap = "10px";
+      row.style.padding = "8px 6px";
+      row.style.borderBottom = "1px solid rgba(255,255,255,0.08)";
+
+      const label = document.createElement("div");
+      label.textContent = phrase;
+      label.style.fontWeight = "800";
+
+      const remove = document.createElement("button");
+      remove.textContent = "Remove";
+      remove.onclick = () => {
+        this.soundPhrases.splice(index, 1);
+        this._renderSoundPhraseList();
+
+        if (this.running) {
+          this._startSoundPhraseLoop();
+        }
+      };
+
+      row.appendChild(label);
+      row.appendChild(remove);
+      this.soundPhraseList.appendChild(row);
+    });
+  }
+
+  _startSoundPhraseLoop() {
+    this._stopSoundPhraseLoop();
+
+    if (!this.soundPhrases?.length) return;
+    if (!("speechSynthesis" in window)) return;
+
+    this._soundPhraseLoopToken += 1;
+    const token = this._soundPhraseLoopToken;
+
+    const voices = window.speechSynthesis.getVoices?.() || [];
+
+    const zira =
+      voices.find(v => v.name.toLowerCase().includes("zira")) ||
+      voices.find(v => v.voiceURI.toLowerCase().includes("zira")) ||
+      null;
+
+    const speakPhrase = () => {
+      if (token !== this._soundPhraseLoopToken) return;
+      if (!this.running) return;
+      if (!this.soundPhrases.length) return;
+
+      const phrase =
+        this.soundPhrases[
+          this._soundPhraseIndex % this.soundPhrases.length
+        ];
+
+      this._soundPhraseIndex += 1;
+
+      const utter = new SpeechSynthesisUtterance(phrase);
+
+      if (zira) utter.voice = zira;
+
+      utter.rate = 1.05;
+      utter.pitch = 1.0;
+      utter.volume = 1.0;
+
+      // Estimate phrase duration
+      const estimatedMs = Math.max(
+        500,
+        phrase.length * 58
+      );
+
+      // Start NEXT phrase EARLY
+      setTimeout(() => {
+        speakPhrase();
+      }, Math.max(10, estimatedMs - 600));
+
+      window.speechSynthesis.speak(utter);
+    };
+
+    speakPhrase();
+  }
+
+  _stopSoundPhraseLoop() {
+    this._soundPhraseLoopToken += 1;
+
+    try {
+      window.speechSynthesis?.cancel();
+    } catch {}
+  }
   // =========================
   // Sounds: mode + start/stop
   // =========================
@@ -2305,6 +2946,7 @@ async _primeCameraPermission() {
 
     // reset + bump token so old callbacks can't fire
     this._seqIndex = 0;
+    this._lastRandomSoundIndex = -1;
     const token = ++this._seqToken;
     playNext();
   }
