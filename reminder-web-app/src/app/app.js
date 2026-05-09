@@ -26,6 +26,10 @@ export class App {
     this.root.style.inset = "0";
     this.root.style.background = "#0b1220";
     this.root.style.overflow = "hidden";
+    this.root.style.webkitTouchCallout = "none";
+    this.root.style.userSelect = "none";
+    this.root.style.touchAction = "manipulation";
+
     // =========================
     // DONATE BUTTON
     // =========================
@@ -2187,30 +2191,67 @@ _cleanupCameraRecording() {
     this._recordHoldStartX = 0;
     this._recordHoldStartY = 0;
 
-    this.root.addEventListener("pointerdown", (e) => {
+// Disable right-click / tablet long-press menu while program is running.
+this.root.addEventListener("contextmenu", (e) => {
+  if (!this.running) return;
+
+  e.preventDefault();
+  e.stopPropagation();
+});
+
+// Press and hold screen for half a second to start camera recording.
+// Better for tablets than single tap, without feeling too slow.
+this._recordHoldTimer = null;
+this._recordHoldStartX = 0;
+this._recordHoldStartY = 0;
+
+this.root.addEventListener("pointerdown", (e) => {
+  if (!this.running) return;
+  if (this._cameraRecording) return;
+  if (this._isAnyOverlayOpen()) return;
+
+  const tag = e.target?.tagName?.toLowerCase();
+  if (tag === "button" || tag === "input" || tag === "textarea" || tag === "select" || tag === "a") {
+    return;
+  }
+
+  this._recordHoldStartX = e.clientX;
+  this._recordHoldStartY = e.clientY;
+
+  clearTimeout(this._recordHoldTimer);
+
+  this._recordHoldTimer = setTimeout(async () => {
+      this._recordHoldTimer = null;
+
       if (!this.running) return;
       if (this._cameraRecording) return;
       if (this._isAnyOverlayOpen()) return;
 
-      const tag = e.target?.tagName?.toLowerCase();
-      if (tag === "button" || tag === "input" || tag === "textarea" || tag === "select" || tag === "a") {
-        return;
-      }
+      await this._startCameraReminderRecording();
+    }, 500);
+  });
 
-      this._recordHoldStartX = e.clientX;
-      this._recordHoldStartY = e.clientY;
-
+    this.root.addEventListener("pointerup", () => {
       clearTimeout(this._recordHoldTimer);
+      this._recordHoldTimer = null;
+    });
 
-      this._recordHoldTimer = setTimeout(async () => {
+    this.root.addEventListener("pointercancel", () => {
+      clearTimeout(this._recordHoldTimer);
+      this._recordHoldTimer = null;
+    });
+
+    this.root.addEventListener("pointermove", (e) => {
+      if (!this._recordHoldTimer) return;
+
+      const dx = Math.abs(e.clientX - this._recordHoldStartX);
+      const dy = Math.abs(e.clientY - this._recordHoldStartY);
+
+      // Cancel if finger/mouse moves too much.
+      if (dx > 20 || dy > 20) {
+        clearTimeout(this._recordHoldTimer);
         this._recordHoldTimer = null;
-
-        if (!this.running) return;
-        if (this._cameraRecording) return;
-        if (this._isAnyOverlayOpen()) return;
-
-        await this._startCameraReminderRecording();
-      }, 1000);
+      }
     });
 
     this.root.addEventListener("pointerup", () => {
