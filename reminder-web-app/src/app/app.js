@@ -2181,25 +2181,60 @@ _cleanupCameraRecording() {
     };
     // Tap screen once to start the 15-second camera recording.
     // Useful for tablets where there is no keyboard.
-    this.root.addEventListener("pointerup", async (e) => {
-      // Only trigger while the program is running.
+    // Press and hold screen for 1 full second to start camera recording.
+    // Better for tablets than single tap.
+    this._recordHoldTimer = null;
+    this._recordHoldStartX = 0;
+    this._recordHoldStartY = 0;
+
+    this.root.addEventListener("pointerdown", (e) => {
       if (!this.running) return;
-
-      // Do not trigger while already recording.
       if (this._cameraRecording) return;
+      if (this._isAnyOverlayOpen()) return;
 
-      // Do not trigger from menus/buttons/inputs.
       const tag = e.target?.tagName?.toLowerCase();
       if (tag === "button" || tag === "input" || tag === "textarea" || tag === "select" || tag === "a") {
         return;
       }
 
-      // Do not trigger if one of the setup panels is open.
-      if (this._isAnyOverlayOpen()) return;
+      this._recordHoldStartX = e.clientX;
+      this._recordHoldStartY = e.clientY;
 
-      e.preventDefault();
-      await this._startCameraReminderRecording();
-    });    
+      clearTimeout(this._recordHoldTimer);
+
+      this._recordHoldTimer = setTimeout(async () => {
+        this._recordHoldTimer = null;
+
+        if (!this.running) return;
+        if (this._cameraRecording) return;
+        if (this._isAnyOverlayOpen()) return;
+
+        await this._startCameraReminderRecording();
+      }, 1000);
+    });
+
+    this.root.addEventListener("pointerup", () => {
+      clearTimeout(this._recordHoldTimer);
+      this._recordHoldTimer = null;
+    });
+
+    this.root.addEventListener("pointercancel", () => {
+      clearTimeout(this._recordHoldTimer);
+      this._recordHoldTimer = null;
+    });
+
+    this.root.addEventListener("pointermove", (e) => {
+      if (!this._recordHoldTimer) return;
+
+      const dx = Math.abs(e.clientX - this._recordHoldStartX);
+      const dy = Math.abs(e.clientY - this._recordHoldStartY);
+
+      // Cancel if finger/mouse moves too much.
+      if (dx > 20 || dy > 20) {
+        clearTimeout(this._recordHoldTimer);
+        this._recordHoldTimer = null;
+      }
+    });
     document.addEventListener("fullscreenchange", this._onFullscreenChange);
     // =========================
     // DOUBLE TAP TO STOP
