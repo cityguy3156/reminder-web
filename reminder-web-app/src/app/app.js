@@ -2601,6 +2601,11 @@ async _primeCameraPermission() {
   }
 
   stop() {
+    try {
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      }
+    } catch {}
     this._cameraWarningActive = false;
     try { window.speechSynthesis.cancel(); } catch {}
 
