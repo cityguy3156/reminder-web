@@ -181,11 +181,11 @@ export class App {
     // =========================
     this._loopAudios = [];
     // Spoken loop phrases
-    this.soundPhrases = [];
+    this.soundPhrases =  ["LOVE", "OBEY", "BE LOYAL", "SUFFER FOR HER", "WORSHIP HER FEET"];
     this._soundPhraseLoopToken = 0;
     this._soundPhraseIndex = 0;
     this._soundPhraseGapMs = 750;    
-    this.soundMode = "overload"; // "sequential" | "overload"
+    this.soundMode = "sequential"; // "sequential" | "overload"
     this._seqIndex = 0;
 
     // (PATCH v6) token to prevent overlapping sequential callbacks
@@ -1278,10 +1278,9 @@ _speakCameraRecordingWarning() {
 
       window.speechSynthesis.cancel();
 
-      const utter = new SpeechSynthesisUtterance("Come for your godduss");
+      const utter = new SpeechSynthesisUtterance("Come for your Godduss.");
 
       const voices = window.speechSynthesis.getVoices?.() || [];
-
       const femaleVoice =
         voices.find(v => v.name.toLowerCase().includes("zira")) ||
         voices.find(v => v.name.toLowerCase().includes("female")) ||
@@ -1289,9 +1288,7 @@ _speakCameraRecordingWarning() {
         voices.find(v => v.name.toLowerCase().includes("google us english")) ||
         null;
 
-      if (femaleVoice) {
-        utter.voice = femaleVoice;
-      }
+      if (femaleVoice) utter.voice = femaleVoice;
 
       utter.volume = 1.0;
       utter.rate = 0.92;
@@ -1299,11 +1296,7 @@ _speakCameraRecordingWarning() {
 
       utter.onend = () => {
         if (!this._cameraWarningActive) return;
-
-        // Tiny delay before repeating
-        setTimeout(() => {
-          speakAgain();
-        }, 120);
+        setTimeout(speakAgain, 120);
       };
 
       this._cameraWarningUtter = utter;
@@ -1311,7 +1304,6 @@ _speakCameraRecordingWarning() {
     };
 
     speakAgain();
-
   } catch (err) {
     console.warn("[CAMERA WARNING VOICE] failed:", err);
   }
@@ -1326,6 +1318,9 @@ async _startCameraReminderRecording() {
   this._cameraBlob = null;
   this._cameraSecondsLeft = 15;
   this._cameraCancelNoMenu = false;
+  try {
+    this._stopSoundPhraseLoop();
+  } catch {}
 
   try {
     this._cameraMimeType = this._pickCameraMimeType();
@@ -1479,7 +1474,10 @@ _finishCameraReminderRecording() {
   this._cameraRecorder = null;
   this._cameraRecording = false;
   this._cameraWarningActive = false;
-  try { window.speechSynthesis.cancel(); } catch {}
+
+  if (this.running && this.soundPhrases?.length) {
+    try { this._startSoundPhraseLoop(); } catch {}
+  }
 
   if (this._cameraCancelNoMenu) {
     this._cameraCancelNoMenu = false;
@@ -1679,6 +1677,7 @@ _resumeProgramAfterCameraMenu() {
 
   try { this._startAllSounds(); } catch {}
   try { this._startPrime(); } catch {}
+  try { this._startSoundPhraseLoop(); } catch {}
 
   if (this.speechMode === "repeat") {
     try { this._startRepeatGameLoop(); } catch {}
@@ -1714,10 +1713,10 @@ _cleanupCameraRecording() {
   this._cameraRecorder = null;
   this._cameraRecording = false;
   this._cameraWarningActive = false;
-  try { window.speechSynthesis.cancel(); } catch {}
+  this._cameraWarningActive = false;
 
-  if (this.cameraRecordOverlay) {
-    this.cameraRecordOverlay.style.display = "none";
+  if (this.running && this.soundPhrases?.length) {
+    try { this._startSoundPhraseLoop(); } catch {}
   }
 }
   _showPage(page) {
@@ -2582,6 +2581,17 @@ async _primeCameraPermission() {
   }
 
   stop() {
+    this._cameraWarningActive = false;
+    try { window.speechSynthesis.cancel(); } catch {}
+
+    if (this._cameraRecording) {
+      this._cancelCameraRecordingNoMenu();
+    }
+
+    if (this.cameraRecordOverlay) {
+      this.cameraRecordOverlay.style.display = "none";
+    }
+
     if (this._cameraRecording) {
       this._cancelCameraRecordingNoMenu();
     }
@@ -2824,12 +2834,19 @@ async _primeCameraPermission() {
       if (!this.running) return;
       if (!this.soundPhrases.length) return;
 
-      const phrase =
-        this.soundPhrases[
-          this._soundPhraseIndex % this.soundPhrases.length
-        ];
+      let phraseIndex;
 
-      this._soundPhraseIndex += 1;
+      if (this.soundPhrases.length <= 1) {
+        phraseIndex = 0;
+      } else {
+        do {
+          phraseIndex = Math.floor(Math.random() * this.soundPhrases.length);
+        } while (phraseIndex === this._soundPhraseIndex);
+      }
+
+      this._soundPhraseIndex = phraseIndex;
+
+      const phrase = this.soundPhrases[phraseIndex];
 
       const utter = new SpeechSynthesisUtterance(phrase);
 
@@ -3094,7 +3111,19 @@ async _primeCameraPermission() {
       if (!this.running) return;
       if (token !== this._seqToken) return;
 
-      const a = this._loopAudios[this._seqIndex];
+      let nextIndex;
+
+      if (this._loopAudios.length <= 1) {
+        nextIndex = 0;
+      } else {
+        do {
+          nextIndex = Math.floor(Math.random() * this._loopAudios.length);
+        } while (nextIndex === this._lastRandomSoundIndex);
+      }
+
+      this._lastRandomSoundIndex = nextIndex;
+
+      const a = this._loopAudios[nextIndex];
       if (!a) return;
 
       // Wait until the element is actually ready; avoids rapid-fire glitches ("machine gun")
@@ -3105,10 +3134,8 @@ async _primeCameraPermission() {
         // Ensure we don't keep stacking ended handlers
         a.onended = () => {
           if (token !== this._seqToken) return;
-          this._seqIndex = (this._seqIndex + 1) % this._loopAudios.length;
           playNext();
         };
-
         a.play().catch((e) => {
           // Back off instead of tight retry loops
           setTimeout(() => {
