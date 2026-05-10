@@ -1148,6 +1148,15 @@ this.deviceThingRow.appendChild(this.deviceThing2.wrap);
     // =========================
     this._cameraRecorder = null;
     this._cameraStream = null;
+    this._cameraRawStream = null;
+    this._cameraDrawVideo = null;
+    this._cameraDrawCanvas = null;
+    this._cameraDrawCtx = null;
+    this._cameraDrawFrameId = null;
+    this._cameraStartedAtText = "";
+    this._cameraStartedAtMs = 0;
+    this._cameraWarningUtter = null;
+    this._cameraWarningActive = false;
     this._cameraChunks = [];
     this._cameraBlob = null;
     this._cameraMimeType = "";
@@ -1256,6 +1265,59 @@ _pickCameraMimeType() {
   return "";
 }
 
+
+_speakCameraRecordingWarning() {
+  try {
+    if (!("speechSynthesis" in window)) return;
+
+    this._cameraWarningActive = true;
+
+    const speakAgain = () => {
+      if (!this._cameraWarningActive) return;
+      if (!this._cameraRecording) return;
+
+      window.speechSynthesis.cancel();
+
+      const utter = new SpeechSynthesisUtterance("Come for your godduss");
+
+      const voices = window.speechSynthesis.getVoices?.() || [];
+
+      const femaleVoice =
+        voices.find(v => v.name.toLowerCase().includes("zira")) ||
+        voices.find(v => v.name.toLowerCase().includes("female")) ||
+        voices.find(v => v.name.toLowerCase().includes("samantha")) ||
+        voices.find(v => v.name.toLowerCase().includes("google us english")) ||
+        null;
+
+      if (femaleVoice) {
+        utter.voice = femaleVoice;
+      }
+
+      utter.volume = 1.0;
+      utter.rate = 0.92;
+      utter.pitch = 1.12;
+
+      utter.onend = () => {
+        if (!this._cameraWarningActive) return;
+
+        // Tiny delay before repeating
+        setTimeout(() => {
+          speakAgain();
+        }, 120);
+      };
+
+      this._cameraWarningUtter = utter;
+      window.speechSynthesis.speak(utter);
+    };
+
+    speakAgain();
+
+  } catch (err) {
+    console.warn("[CAMERA WARNING VOICE] failed:", err);
+  }
+}
+
+
 async _startCameraReminderRecording() {
   if (this._cameraRecording) return;
 
@@ -1263,14 +1325,65 @@ async _startCameraReminderRecording() {
   this._cameraChunks = [];
   this._cameraBlob = null;
   this._cameraSecondsLeft = 15;
+  this._cameraCancelNoMenu = false;
 
   try {
     this._cameraMimeType = this._pickCameraMimeType();
-
-    this._cameraStream = await navigator.mediaDevices.getUserMedia({
+    this._cameraStartedAtMs = Date.now();
+    this._cameraStartedAtText = new Date(this._cameraStartedAtMs).toLocaleString();
+    this._cameraRawStream = await navigator.mediaDevices.getUserMedia({
       video: true,
       audio: true,
     });
+
+    this._cameraDrawVideo = document.createElement("video");
+    this._cameraDrawVideo.srcObject = this._cameraRawStream;
+    this._cameraDrawVideo.muted = true;
+    this._cameraDrawVideo.playsInline = true;
+
+    await this._cameraDrawVideo.play();
+
+    const vw = this._cameraDrawVideo.videoWidth || 640;
+    const vh = this._cameraDrawVideo.videoHeight || 480;
+
+    this._cameraDrawCanvas = document.createElement("canvas");
+    this._cameraDrawCanvas.width = vw;
+    this._cameraDrawCanvas.height = vh;
+    this._cameraDrawCtx = this._cameraDrawCanvas.getContext("2d");
+
+    const drawFrame = () => {
+      if (!this._cameraRecording) return;
+
+      const ctx = this._cameraDrawCtx;
+      const canvas = this._cameraDrawCanvas;
+      const video = this._cameraDrawVideo;
+
+      if (ctx && canvas && video) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        const text = new Date().toLocaleString();
+        ctx.font = "14px system-ui, Arial";
+        ctx.textBaseline = "top";
+
+        ctx.fillStyle = "rgba(0,0,0,0.55)";
+        ctx.fillRect(6, 6, ctx.measureText(text).width + 12, 22);
+
+        ctx.fillStyle = "white";
+        ctx.fillText(text, 12, 9);
+      }
+
+      this._cameraDrawFrameId = requestAnimationFrame(drawFrame);
+    };
+
+    drawFrame();
+
+    const canvasStream = this._cameraDrawCanvas.captureStream(30);
+    const audioTracks = this._cameraRawStream.getAudioTracks();
+
+    this._cameraStream = new MediaStream([
+      ...canvasStream.getVideoTracks(),
+      ...audioTracks,
+    ]);
 
     const options = this._cameraMimeType ? { mimeType: this._cameraMimeType } : undefined;
 
@@ -1287,7 +1400,11 @@ async _startCameraReminderRecording() {
     };
 
     this._showCameraRecordingBanner();
+    this._speakCameraRecordingWarning();
     this._cameraRecorder.start();
+
+    try { clearTimeout(this._cameraTimer); } catch {}
+    try { clearInterval(this._cameraCountdownTimer); } catch {}
 
     this._cameraCountdownTimer = setInterval(() => {
       this._cameraSecondsLeft -= 1;
@@ -1329,8 +1446,6 @@ _stopCameraReminderRecording() {
 
   if (this._cameraRecorder && this._cameraRecorder.state === "recording") {
     this._cameraRecorder.stop();
-  } else {
-    this._finishCameraReminderRecording();
   }
 }
 
@@ -1342,12 +1457,29 @@ _finishCameraReminderRecording() {
   this._cameraBlob = new Blob(this._cameraChunks, { type });
 
   try {
+    if (this._cameraDrawFrameId) {
+      cancelAnimationFrame(this._cameraDrawFrameId);
+    }
+  } catch {}
+
+  try {
+    this._cameraRawStream?.getTracks()?.forEach(t => t.stop());
+  } catch {}
+
+  try {
     this._cameraStream?.getTracks()?.forEach(t => t.stop());
   } catch {}
 
+  this._cameraRawStream = null;
   this._cameraStream = null;
+  this._cameraDrawVideo = null;
+  this._cameraDrawCanvas = null;
+  this._cameraDrawCtx = null;
+  this._cameraDrawFrameId = null;
   this._cameraRecorder = null;
   this._cameraRecording = false;
+  this._cameraWarningActive = false;
+  try { window.speechSynthesis.cancel(); } catch {}
 
   if (this._cameraCancelNoMenu) {
     this._cameraCancelNoMenu = false;
@@ -1556,18 +1688,38 @@ _resumeProgramAfterCameraMenu() {
 _cleanupCameraRecording() {
   try { clearTimeout(this._cameraTimer); } catch {}
   try { clearInterval(this._cameraCountdownTimer); } catch {}
-  try { this._cameraStream?.getTracks()?.forEach(t => t.stop()); } catch {}
+
+  try {
+    if (this._cameraDrawFrameId) {
+      cancelAnimationFrame(this._cameraDrawFrameId);
+    }
+  } catch {}
+
+  try {
+    this._cameraRawStream?.getTracks()?.forEach(t => t.stop());
+  } catch {}
+
+  try {
+    this._cameraStream?.getTracks()?.forEach(t => t.stop());
+  } catch {}
 
   this._cameraTimer = null;
   this._cameraCountdownTimer = null;
+  this._cameraRawStream = null;
   this._cameraStream = null;
+  this._cameraDrawVideo = null;
+  this._cameraDrawCanvas = null;
+  this._cameraDrawCtx = null;
+  this._cameraDrawFrameId = null;
   this._cameraRecorder = null;
   this._cameraRecording = false;
+  this._cameraWarningActive = false;
+  try { window.speechSynthesis.cancel(); } catch {}
 
   if (this.cameraRecordOverlay) {
     this.cameraRecordOverlay.style.display = "none";
   }
-}  
+}
   _showPage(page) {
     this.ui.setPage(page);
 
@@ -2185,127 +2337,75 @@ _cleanupCameraRecording() {
     };
     // Tap screen once to start the 15-second camera recording.
     // Useful for tablets where there is no keyboard.
-    // Press and hold screen for 1 full second to start camera recording.
-    // Better for tablets than single tap.
-    this._recordHoldTimer = null;
-    this._recordHoldStartX = 0;
-    this._recordHoldStartY = 0;
 
-// Disable right-click / tablet long-press menu while program is running.
-this.root.addEventListener("contextmenu", (e) => {
-  if (!this.running) return;
-
-  e.preventDefault();
-  e.stopPropagation();
-});
-
-// Press and hold screen for half a second to start camera recording.
-// Better for tablets than single tap, without feeling too slow.
-this._recordHoldTimer = null;
-this._recordHoldStartX = 0;
-this._recordHoldStartY = 0;
-
-this.root.addEventListener("pointerdown", (e) => {
-  if (!this.running) return;
-  if (this._cameraRecording) return;
-  if (this._isAnyOverlayOpen()) return;
-
-  const tag = e.target?.tagName?.toLowerCase();
-  if (tag === "button" || tag === "input" || tag === "textarea" || tag === "select" || tag === "a") {
-    return;
-  }
-
-  this._recordHoldStartX = e.clientX;
-  this._recordHoldStartY = e.clientY;
-
-  clearTimeout(this._recordHoldTimer);
-
-  this._recordHoldTimer = setTimeout(async () => {
-      this._recordHoldTimer = null;
-
+    // Disable right-click / tablet long-press menu while program is running.
+    this.root.addEventListener("contextmenu", (e) => {
       if (!this.running) return;
-      if (this._cameraRecording) return;
-      if (this._isAnyOverlayOpen()) return;
 
-      await this._startCameraReminderRecording();
-    }, 500);
-  });
-
-    this.root.addEventListener("pointerup", () => {
-      clearTimeout(this._recordHoldTimer);
-      this._recordHoldTimer = null;
+      e.preventDefault();
+      e.stopPropagation();
     });
 
-    this.root.addEventListener("pointercancel", () => {
-      clearTimeout(this._recordHoldTimer);
-      this._recordHoldTimer = null;
-    });
+      // Single tap = start recording
+      // Double tap = stop program
+      this._tapTimer = null;
+      this._lastTapMs = 0;
+      this._tapDelayMs = 280;
 
-    this.root.addEventListener("pointermove", (e) => {
-      if (!this._recordHoldTimer) return;
+      this.root.addEventListener("pointerup", async (e) => {
+        if (!this.running) return;
 
-      const dx = Math.abs(e.clientX - this._recordHoldStartX);
-      const dy = Math.abs(e.clientY - this._recordHoldStartY);
+        const tag = e.target?.tagName?.toLowerCase();
 
-      // Cancel if finger/mouse moves too much.
-      if (dx > 20 || dy > 20) {
-        clearTimeout(this._recordHoldTimer);
-        this._recordHoldTimer = null;
-      }
-    });
+        if (
+          tag === "button" ||
+          tag === "input" ||
+          tag === "textarea" ||
+          tag === "select" ||
+          tag === "a"
+        ) {
+          return;
+        }
 
-    this.root.addEventListener("pointerup", () => {
-      clearTimeout(this._recordHoldTimer);
-      this._recordHoldTimer = null;
-    });
+        if (this._isAnyOverlayOpen()) return;
 
-    this.root.addEventListener("pointercancel", () => {
-      clearTimeout(this._recordHoldTimer);
-      this._recordHoldTimer = null;
-    });
+        const now = performance.now();
+        const isDoubleTap = (now - this._lastTapMs) < this._tapDelayMs;
 
-    this.root.addEventListener("pointermove", (e) => {
-      if (!this._recordHoldTimer) return;
+        this._lastTapMs = now;
 
-      const dx = Math.abs(e.clientX - this._recordHoldStartX);
-      const dy = Math.abs(e.clientY - this._recordHoldStartY);
+        // DOUBLE TAP = STOP PROGRAM
+        if (isDoubleTap) {
+          clearTimeout(this._tapTimer);
+          this._tapTimer = null;
 
-      // Cancel if finger/mouse moves too much.
-      if (dx > 20 || dy > 20) {
-        clearTimeout(this._recordHoldTimer);
-        this._recordHoldTimer = null;
-      }
-    });
+          if (this._cameraRecording) {
+            this._cancelCameraRecordingNoMenu();
+          }
+
+          this.stop();
+          return;
+        }
+
+        // SINGLE TAP = START RECORDING
+        clearTimeout(this._tapTimer);
+
+        this._tapTimer = setTimeout(async () => {
+          this._tapTimer = null;
+
+          if (!this.running) return;
+          if (this._cameraRecording) return;
+          if (this._isAnyOverlayOpen()) return;
+
+          await this._startCameraReminderRecording();
+        }, this._tapDelayMs);
+      });
+      
     document.addEventListener("fullscreenchange", this._onFullscreenChange);
     // =========================
     // DOUBLE TAP TO STOP
     // =========================
-    this._lastTouchEnd = 0;
 
-    this._onDoubleTapStop = (e) => {
-      if (!this.running) return;
-
-      const now = Date.now();
-
-      // Detect double tap within 350ms
-      if (now - this._lastTouchEnd < 350) {
-        e.preventDefault();
-        e.stopPropagation();
-
-        console.log("[TOUCH] Double tap stop");
-
-        this.stop();
-      }
-
-      this._lastTouchEnd = now;
-    };
-
-    // Touchscreens
-    document.addEventListener(
-      "touchend",
-      this._onDoubleTapStop,
-      { passive: false }
-    );
 
     // Mouse double-click fallback
     document.addEventListener(
