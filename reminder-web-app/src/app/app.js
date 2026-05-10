@@ -1166,6 +1166,8 @@ this.deviceThingRow.appendChild(this.deviceThing2.wrap);
     this._cameraSecondsLeft = 15;
     this._cameraCancelNoMenu = false;
     this._pausedByCameraMenu = false;
+    this._visionPausedByCamera = false;
+    this._restoreFullscreenAfterCameraMenu = false;
     this._cameraCancelNoMenu = false;
 
     // Fullscreen recording overlay (obvious + blocks interaction)
@@ -1321,6 +1323,8 @@ async _startCameraReminderRecording() {
   try {
     this._stopSoundPhraseLoop();
   } catch {}
+  this._visionPausedByCamera = this.requireEyesOpen;
+  this.requireEyesOpen = false;
 
   try {
     this._cameraMimeType = this._pickCameraMimeType();
@@ -1569,8 +1573,8 @@ _showCameraCompletedMenu() {
     this.stop();
   };
 
-  this.cameraRecordOverlay.querySelector("#cameraSaveBtn").onclick = () => {
-    this._saveCameraRecording();
+  this.cameraRecordOverlay.querySelector("#cameraSaveBtn").onclick = async () => {
+    await this._saveCameraRecording();
   };
 
   this.cameraRecordOverlay.querySelector("#cameraResumeBtn").onclick = () => {
@@ -1633,12 +1637,18 @@ _cameraMenuBtnStyle() {
   `;
 }
 
-_saveCameraRecording() {
+async _saveCameraRecording() {
   if (!this._cameraBlob) return;
 
   const extension = this._cameraBlob.type.includes("mp4") ? "mp4" : "webm";
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
 
+  this._restoreFullscreenAfterCameraMenu = !!document.fullscreenElement;
+  try {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+    }
+  } catch {}
   const url = URL.createObjectURL(this._cameraBlob);
   const a = document.createElement("a");
   a.href = url;
@@ -1669,11 +1679,21 @@ _pauseProgramForCameraMenu() {
   try { this._cancelSpeech(); } catch {}
 }
 
-_resumeProgramAfterCameraMenu() {
+async _resumeProgramAfterCameraMenu() {
   if (!this._pausedByCameraMenu) return;
 
   this._pausedByCameraMenu = false;
   this.running = true;
+  if (this._restoreFullscreenAfterCameraMenu) {
+    this._restoreFullscreenAfterCameraMenu = false;
+    try { await this._ensureFullscreen(); } catch {}
+  }
+
+  if (this._visionPausedByCamera) {
+    this.requireEyesOpen = true;
+    this._visionPausedByCamera = false;
+    this._eyeGraceUntil = performance.now() + this.eyeGraceMs;
+  }
 
   try { this._startAllSounds(); } catch {}
   try { this._startPrime(); } catch {}
