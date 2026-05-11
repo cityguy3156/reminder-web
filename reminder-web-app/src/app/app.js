@@ -2344,11 +2344,14 @@ _cleanupCameraRecording() {
 
     // If user hits ESC and exits fullscreen while running, stop the program.
     this._onFullscreenChange = () => {
-      // Do NOT auto-stop the program just because fullscreen changed.
-      // Touchscreen laptops/tablets can briefly leave fullscreen during
-      // camera permission, download, or touch UI transitions.
       if (!document.fullscreenElement) {
-        console.log("[FULLSCREEN] exited fullscreen; program continues");
+        if (this._cameraRecording) {
+          this._cancelCameraRecordingNoMenu();
+        }
+
+        if (this.running) {
+          this.stop();
+        }
       }
     };
     // Tap screen once to start the 15-second camera recording.
