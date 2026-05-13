@@ -359,7 +359,7 @@ export class App {
     // MOBILE HOME LAYOUT
     // =========================
     const applyMobileHomeLayout = () => {
-      const mobile = window.matchMedia("(max-width: 700px) and (orientation: portrait)").matches;
+      const mobile = window.matchMedia("(max-width: 900px)").matches;
       if (mobile) {
         this.homePanel.style.width = "min(420px, calc(100vw - 28px))";
         this.homePanel.style.gridTemplateColumns = "1fr";
@@ -1754,17 +1754,41 @@ async _saveCameraRecording() {
 
   const extension = this._cameraBlob.type.includes("mp4") ? "mp4" : "webm";
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const filename = `reminder-recording-${timestamp}.${extension}`;
 
   this._restoreFullscreenAfterCameraMenu = !!document.fullscreenElement;
+
   try {
     if (document.fullscreenElement) {
       await document.exitFullscreen();
     }
   } catch {}
+
+  const file = new File([this._cameraBlob], filename, {
+    type: this._cameraBlob.type || "video/mp4",
+  });
+
+  if (
+    navigator.canShare &&
+    navigator.canShare({ files: [file] }) &&
+    navigator.share
+  ) {
+    try {
+      await navigator.share({
+        files: [file],
+        title: "Re-Minder Recording",
+        text: "Save this Re-Minder recording.",
+      });
+      return;
+    } catch (err) {
+      console.warn("[CAMERA RECORDING] share cancelled/failed:", err);
+    }
+  }
+
   const url = URL.createObjectURL(this._cameraBlob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `reminder-recording-${timestamp}.${extension}`;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   a.remove();
