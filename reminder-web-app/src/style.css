@@ -796,3 +796,18 @@ canvas#stimulus {
     max-height: 260px !important;
   }
 }
+/* =========================
+   MOBILE SOUNDS SCROLL FIX
+========================= */
+
+@media (max-width: 900px) {
+  #soundsPanel {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    max-height: calc(100dvh - 90px) !important;
+  }
+
+  #soundsPanel .soundCard {
+    flex-shrink: 0 !important;
+  }
+}
