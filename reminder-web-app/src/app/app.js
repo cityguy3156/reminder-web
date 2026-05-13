@@ -359,58 +359,10 @@ export class App {
     // MOBILE HOME LAYOUT
     // =========================
     const applyMobileHomeLayout = () => {
-      const isLandscapePhone = window.matchMedia("(max-width: 900px) and (orientation: landscape)").matches;
-      const isPortraitPhone = window.matchMedia("(max-width: 900px) and (orientation: portrait)").matches;
+      const mobilePortrait = window.matchMedia("(max-width: 900px) and (orientation: portrait)").matches;
+      const mobileLandscape = window.matchMedia("(max-width: 900px) and (orientation: landscape)").matches;
 
-      // Reset shared button placement first
-      for (const btn of [this.btnConnectLight, this.btnHomeSights, this.btnHomeSounds, this.btnHomeSpeech]) {
-        if (!btn) continue;
-        btn.style.position = "relative";
-        btn.style.zIndex = "3";
-        btn.style.pointerEvents = "auto";
-      }
-
-      if (isLandscapePhone) {
-        this.banner.style.top = "4px";
-        this.bannerImg.style.height = "42px";
-        this.bannerText.style.fontSize = "24px";
-
-        this.homePanel.style.width = "min(760px, calc(100vw - 48px))";
-        this.homePanel.style.gridTemplateColumns = "repeat(3, minmax(0, 1fr))";
-        this.homePanel.style.gridTemplateRows = "48px 70px";
-        this.homePanel.style.rowGap = "10px";
-        this.homePanel.style.columnGap = "10px";
-        this.homePanel.style.top = "48%";
-
-        this.btnConnectLight.style.gridColumn = "1 / 4";
-        this.btnConnectLight.style.gridRow = "1";
-        this.btnConnectLight.style.width = "100%";
-        this.btnConnectLight.style.height = "48px";
-        this.btnConnectLight.style.fontSize = "18px";
-
-        const buttons = [
-          [this.btnHomeSights, "1"],
-          [this.btnHomeSounds, "2"],
-          [this.btnHomeSpeech, "3"],
-        ];
-
-        for (const [btn, col] of buttons) {
-          btn.style.gridColumn = col;
-          btn.style.gridRow = "2";
-          btn.style.width = "100%";
-          btn.style.maxWidth = "100%";
-          btn.style.height = "70px";
-          btn.style.fontSize = "22px";
-        }
-
-        this.controls.style.width = "min(760px, calc(100vw - 48px))";
-        this.controls.style.bottom = "8px";
-        this.btnStart.style.height = "44px";
-        this.btnStart.style.fontSize = "20px";
-        return;
-      }
-
-      if (isPortraitPhone) {
+      if (mobilePortrait) {
         this.banner.style.top = "10px";
         this.bannerImg.style.height = "clamp(58px, 13vh, 95px)";
         this.bannerText.style.fontSize = "clamp(20px, 5vw, 34px)";
@@ -423,56 +375,95 @@ export class App {
         this.homePanel.style.top = "54%";
 
         this.btnConnectLight.style.gridColumn = "1";
-        this.btnConnectLight.style.gridRow = "auto";
-        this.btnConnectLight.style.width = "100%";
         this.btnConnectLight.style.height = "58px";
         this.btnConnectLight.style.fontSize = "18px";
 
-        for (const btn of [this.btnHomeSights, this.btnHomeSounds, this.btnHomeSpeech]) {
-          btn.style.gridColumn = "1";
-          btn.style.gridRow = "auto";
-          btn.style.width = "100%";
+        this.btnConnectLight.style.gridColumn = "1 / 4";
+        this.btnConnectLight.style.gridRow = "1";
+        this.btnConnectLight.style.position = "relative";
+        this.btnConnectLight.style.zIndex = "1";
+
+        const homeBtns = [
+          [this.btnHomeSights, "1"],
+          [this.btnHomeSounds, "2"],
+          [this.btnHomeSpeech, "3"],
+        ];
+
+        for (const [btn, col] of homeBtns) {
+          if (!btn) continue;
+          btn.style.gridColumn = col;
+          btn.style.gridRow = "2";
+          btn.style.position = "relative";
+          btn.style.zIndex = "2";
           btn.style.maxWidth = "100%";
-          btn.style.height = "74px";
+          btn.style.height = "70px";
           btn.style.fontSize = "22px";
+          btn.style.pointerEvents = "auto";
         }
 
         this.controls.style.bottom = "14px";
         this.controls.style.width = "min(420px, calc(100vw - 28px))";
         this.btnStart.style.height = "62px";
         this.btnStart.style.fontSize = "24px";
-        return;
+
+      } else if (mobileLandscape) {
+        this.banner.style.top = "4px";
+        this.bannerImg.style.height = "48px";
+        this.bannerText.style.fontSize = "26px";
+
+        this.homePanel.style.width = "min(720px, calc(100vw - 220px))";
+        this.homePanel.style.gridTemplateColumns = "repeat(3, 1fr)";
+        this.homePanel.style.gridTemplateRows = "auto auto";
+        this.homePanel.style.rowGap = "10px";
+        this.homePanel.style.columnGap = "10px";
+        this.homePanel.style.top = "47%";
+
+        this.btnConnectLight.style.gridColumn = "1 / 4";
+        this.btnConnectLight.style.height = "48px";
+        this.btnConnectLight.style.fontSize = "19px";
+
+        for (const btn of [this.btnHomeSights, this.btnHomeSounds, this.btnHomeSpeech]) {
+          if (!btn) continue;
+          btn.style.maxWidth = "100%";
+          btn.style.height = "70px";
+          btn.style.fontSize = "22px";
+        }
+
+        this.controls.style.bottom = "10px";
+        this.controls.style.width = "min(720px, calc(100vw - 220px))";
+        this.btnStart.style.height = "46px";
+        this.btnStart.style.fontSize = "21px";
+
+      } else {
+        this.banner.style.top = "14px";
+        this.bannerImg.style.height = "clamp(80px, 18vh, 160px)";
+        this.bannerText.style.fontSize = "clamp(22px, 4vw, 48px)";
+
+        this.homePanel.style.width = "min(920px, calc(100vw - 40px))";
+        this.homePanel.style.gridTemplateColumns = "repeat(3, minmax(140px, 220px))";
+        this.homePanel.style.gridTemplateRows = "auto auto";
+        this.homePanel.style.rowGap = "26px";
+        this.homePanel.style.columnGap = "26px";
+        this.homePanel.style.top = "50%";
+
+        this.btnConnectLight.style.gridColumn = "1 / 4";
+        this.btnConnectLight.style.height = "86px";
+        this.btnConnectLight.style.fontSize = "22px";
+
+        for (const btn of [this.btnHomeSights, this.btnHomeSounds, this.btnHomeSpeech]) {
+          if (!btn) continue;
+          btn.style.maxWidth = "220px";
+          btn.style.height = "210px";
+          btn.style.fontSize = "22px";
+        }
+
+        this.controls.style.bottom = "22px";
+        this.controls.style.width = "min(712px, calc(100vw - 40px))";
+        this.btnStart.style.height = "86px";
+        this.btnStart.style.fontSize = "28px";
       }
-
-      // Desktop
-      this.banner.style.top = "14px";
-      this.bannerImg.style.height = "clamp(80px, 18vh, 160px)";
-      this.bannerText.style.fontSize = "clamp(22px, 4vw, 48px)";
-
-      this.homePanel.style.width = "min(920px, calc(100vw - 40px))";
-      this.homePanel.style.gridTemplateColumns = "repeat(3, minmax(140px, 220px))";
-      this.homePanel.style.gridTemplateRows = "auto auto";
-      this.homePanel.style.rowGap = "26px";
-      this.homePanel.style.columnGap = "26px";
-      this.homePanel.style.top = "50%";
-
-      this.btnConnectLight.style.gridColumn = "1 / 4";
-      this.btnConnectLight.style.gridRow = "1";
-      this.btnConnectLight.style.height = "86px";
-      this.btnConnectLight.style.fontSize = "22px";
-
-      for (const btn of [this.btnHomeSights, this.btnHomeSounds, this.btnHomeSpeech]) {
-        btn.style.gridRow = "2";
-        btn.style.maxWidth = "220px";
-        btn.style.height = "210px";
-        btn.style.fontSize = "22px";
-      }
-
-      this.controls.style.bottom = "22px";
-      this.controls.style.width = "min(712px, calc(100vw - 40px))";
-      this.btnStart.style.height = "86px";
-      this.btnStart.style.fontSize = "28px";
     };
+
     window.addEventListener("resize", applyMobileHomeLayout);
     window.addEventListener("orientationchange", applyMobileHomeLayout);
     setTimeout(applyMobileHomeLayout, 0);
