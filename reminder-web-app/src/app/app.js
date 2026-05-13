@@ -2963,17 +2963,23 @@ async _primeCameraPermission() {
     this._soundPhraseLoopToken += 1;
     const token = this._soundPhraseLoopToken;
 
-    const voices = window.speechSynthesis.getVoices?.() || [];
-
-    const zira =
-      voices.find(v => v.name.toLowerCase().includes("zira")) ||
-      voices.find(v => v.voiceURI.toLowerCase().includes("zira")) ||
-      null;
+    // iPhone/Safari: clear stuck speech queue before starting
+    try {
+      window.speechSynthesis.cancel();
+    } catch {}
 
     const speakPhrase = () => {
       if (token !== this._soundPhraseLoopToken) return;
       if (!this.running) return;
       if (!this.soundPhrases.length) return;
+
+      const voices = window.speechSynthesis.getVoices?.() || [];
+
+      const preferredVoice =
+        voices.find(v => (v.lang || "").toLowerCase().startsWith("en") && (v.name || "").toLowerCase().includes("samantha")) ||
+        voices.find(v => (v.lang || "").toLowerCase().startsWith("en")) ||
+        voices[0] ||
+        null;
 
       let phraseIndex;
 
@@ -2987,31 +2993,56 @@ async _primeCameraPermission() {
 
       this._soundPhraseIndex = phraseIndex;
 
-      const phrase = this.soundPhrases[phraseIndex];
+      const phrase = String(this.soundPhrases[phraseIndex] ?? "").trim();
+      if (!phrase) {
+        setTimeout(speakPhrase, 250);
+        return;
+      }
 
       const utter = new SpeechSynthesisUtterance(phrase);
 
-      if (zira) utter.voice = zira;
+      if (preferredVoice) utter.voice = preferredVoice;
 
-      utter.rate = 1.05;
+      utter.rate = 1.0;
       utter.pitch = 1.0;
       utter.volume = 1.0;
 
-      // Estimate phrase duration
-      const estimatedMs = Math.max(
-        500,
-        phrase.length * 58
-      );
+      utter.onend = () => {
+        if (token !== this._soundPhraseLoopToken) return;
+        if (!this.running) return;
+        setTimeout(speakPhrase, this._soundPhraseGapMs || 750);
+      };
 
-      // Start NEXT phrase EARLY
-      setTimeout(() => {
-        speakPhrase();
-      }, Math.max(10, estimatedMs - 600));
+      utter.onerror = (err) => {
+        console.warn("[SPOKEN PHRASE] speech error:", err);
+        if (token !== this._soundPhraseLoopToken) return;
+        if (!this.running) return;
+        setTimeout(speakPhrase, 750);
+      };
 
-      window.speechSynthesis.speak(utter);
+      try {
+        window.speechSynthesis.speak(utter);
+      } catch (err) {
+        console.warn("[SPOKEN PHRASE] speak failed:", err);
+        setTimeout(speakPhrase, 1000);
+      }
     };
 
-    speakPhrase();
+    // iPhone/Safari sometimes loads voices late
+    const voices = window.speechSynthesis.getVoices?.() || [];
+    if (!voices.length) {
+      window.speechSynthesis.onvoiceschanged = () => {
+        if (token !== this._soundPhraseLoopToken) return;
+        speakPhrase();
+      };
+
+      setTimeout(() => {
+        if (token !== this._soundPhraseLoopToken) return;
+        speakPhrase();
+      }, 300);
+    } else {
+      speakPhrase();
+    }
   }
 
   _stopSoundPhraseLoop() {
