@@ -355,6 +355,59 @@ export class App {
       this.btnConnectLight.style.transform = "scale(1)";
     };
 
+    // =========================
+    // MOBILE HOME LAYOUT
+    // =========================
+    const applyMobileHomeLayout = () => {
+      const mobile = window.matchMedia("(max-width: 700px), (pointer: coarse)").matches;
+
+      if (mobile) {
+        this.homePanel.style.width = "min(420px, calc(100vw - 28px))";
+        this.homePanel.style.gridTemplateColumns = "1fr";
+        this.homePanel.style.gridTemplateRows = "none";
+        this.homePanel.style.rowGap = "14px";
+        this.homePanel.style.columnGap = "0";
+        this.homePanel.style.top = "54%";
+
+        this.btnConnectLight.style.gridColumn = "1";
+        this.btnConnectLight.style.height = "58px";
+        this.btnConnectLight.style.fontSize = "18px";
+
+        for (const btn of [this.btnHomeSights, this.btnHomeSounds, this.btnHomeSpeech]) {
+          if (!btn) continue;
+          btn.style.maxWidth = "100%";
+          btn.style.height = "74px";
+          btn.style.fontSize = "22px";
+        }
+
+        this.btnStart.style.height = "62px";
+        this.btnStart.style.fontSize = "24px";
+      } else {
+        this.homePanel.style.width = "min(920px, calc(100vw - 40px))";
+        this.homePanel.style.gridTemplateColumns = "repeat(3, minmax(140px, 220px))";
+        this.homePanel.style.gridTemplateRows = "auto auto";
+        this.homePanel.style.rowGap = "26px";
+        this.homePanel.style.columnGap = "26px";
+        this.homePanel.style.top = "50%";
+
+        this.btnConnectLight.style.gridColumn = "1 / 4";
+        this.btnConnectLight.style.height = "86px";
+        this.btnConnectLight.style.fontSize = "22px";
+
+        for (const btn of [this.btnHomeSights, this.btnHomeSounds, this.btnHomeSpeech]) {
+          if (!btn) continue;
+          btn.style.maxWidth = "220px";
+          btn.style.height = "210px";
+          btn.style.fontSize = "22px";
+        }
+
+        this.btnStart.style.height = "86px";
+        this.btnStart.style.fontSize = "28px";
+      }
+    };
+
+    window.addEventListener("resize", applyMobileHomeLayout);
+    setTimeout(applyMobileHomeLayout, 0);
 
     this.btnHomeSights = mkTile("Sights");
     this.btnHomeSounds = mkTile("Sounds");
