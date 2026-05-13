@@ -751,7 +751,7 @@ canvas#stimulus {
    MOBILE SIGHTS STACK FIX
 ========================= */
 
-@media (max-width: 900px) and (orientation: portrait) {
+@media (max-width: 900px) {
     #sightsPanel {
     width: calc(100vw - 28px) !important;
     height: calc(100dvh - 110px) !important;
@@ -794,20 +794,5 @@ canvas#stimulus {
   .wordsCard {
     width: 100% !important;
     max-height: 260px !important;
-  }
-}
-/* =========================
-   MOBILE SOUNDS SCROLL FIX
-========================= */
-
-@media (max-width: 900px) {
-  #soundsPanel {
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-    max-height: calc(100dvh - 90px) !important;
-  }
-
-  #soundsPanel .soundCard {
-    flex-shrink: 0 !important;
   }
 }
