@@ -483,8 +483,6 @@ export class App {
     window.addEventListener("orientationchange", applyMobileHomeLayout);
     setTimeout(applyMobileHomeLayout, 0);
 
-    window.addEventListener("resize", applyMobileHomeLayout);
-    setTimeout(applyMobileHomeLayout, 0);
 
     this.btnHomeSights = mkTile("Sights");
     this.btnHomeSounds = mkTile("Sounds");
@@ -1138,87 +1136,6 @@ const applyMobileSubmenuLayout = () => {
       panel.style.gap = "18px";
     }
   }
-if (mobilePortrait) {
-  this.banner.style.top = "10px";
-  this.bannerImg.style.height = "clamp(58px, 13vh, 95px)";
-  this.bannerText.style.fontSize = "clamp(20px, 5vw, 34px)";
-
-  this.homePanel.style.width = "min(420px, calc(100vw - 28px))";
-  this.homePanel.style.gridTemplateColumns = "1fr";
-  this.homePanel.style.rowGap = "14px";
-  this.homePanel.style.columnGap = "0";
-  this.homePanel.style.top = "54%";
-
-  this.btnConnectLight.style.gridColumn = "1";
-  this.btnConnectLight.style.height = "58px";
-  this.btnConnectLight.style.fontSize = "18px";
-
-  for (const btn of [this.btnHomeSights, this.btnHomeSounds, this.btnHomeSpeech]) {
-    if (!btn) continue;
-    btn.style.maxWidth = "100%";
-    btn.style.height = "74px";
-    btn.style.fontSize = "22px";
-  }
-
-  this.controls.style.bottom = "14px";
-  this.controls.style.width = "min(420px, calc(100vw - 28px))";
-  this.btnStart.style.height = "62px";
-  this.btnStart.style.fontSize = "24px";
-
-} else if (mobileLandscape) {
-  this.banner.style.top = "6px";
-  this.bannerImg.style.height = "58px";
-  this.bannerText.style.fontSize = "30px";
-
-  this.homePanel.style.width = "min(720px, calc(100vw - 220px))";
-  this.homePanel.style.gridTemplateColumns = "repeat(3, 1fr)";
-  this.homePanel.style.rowGap = "12px";
-  this.homePanel.style.columnGap = "12px";
-  this.homePanel.style.top = "52%";
-
-  this.btnConnectLight.style.gridColumn = "1 / 4";
-  this.btnConnectLight.style.height = "54px";
-  this.btnConnectLight.style.fontSize = "20px";
-
-  for (const btn of [this.btnHomeSights, this.btnHomeSounds, this.btnHomeSpeech]) {
-    if (!btn) continue;
-    btn.style.maxWidth = "100%";
-    btn.style.height = "82px";
-    btn.style.fontSize = "22px";
-  }
-
-  this.controls.style.bottom = "10px";
-  this.controls.style.width = "min(720px, calc(100vw - 220px))";
-  this.btnStart.style.height = "52px";
-  this.btnStart.style.fontSize = "22px";
-
-} else {
-  this.banner.style.top = "14px";
-  this.bannerImg.style.height = "clamp(80px, 18vh, 160px)";
-  this.bannerText.style.fontSize = "clamp(22px, 4vw, 48px)";
-
-  this.homePanel.style.width = "min(920px, calc(100vw - 40px))";
-  this.homePanel.style.gridTemplateColumns = "repeat(3, minmax(140px, 220px))";
-  this.homePanel.style.rowGap = "26px";
-  this.homePanel.style.columnGap = "26px";
-  this.homePanel.style.top = "50%";
-
-  this.btnConnectLight.style.gridColumn = "1 / 4";
-  this.btnConnectLight.style.height = "86px";
-  this.btnConnectLight.style.fontSize = "22px";
-
-  for (const btn of [this.btnHomeSights, this.btnHomeSounds, this.btnHomeSpeech]) {
-    if (!btn) continue;
-    btn.style.maxWidth = "220px";
-    btn.style.height = "210px";
-    btn.style.fontSize = "22px";
-  }
-
-  this.controls.style.bottom = "22px";
-  this.controls.style.width = "min(712px, calc(100vw - 40px))";
-  this.btnStart.style.height = "86px";
-  this.btnStart.style.fontSize = "28px";
-}
   if (mobilePortrait) {
     this.tileGrid.style.display = "grid";
     this.tileGrid.style.gridTemplateColumns = "1fr";
