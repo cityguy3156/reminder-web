@@ -378,11 +378,27 @@ export class App {
         this.btnConnectLight.style.height = "58px";
         this.btnConnectLight.style.fontSize = "18px";
 
-        for (const btn of [this.btnHomeSights, this.btnHomeSounds, this.btnHomeSpeech]) {
+        this.btnConnectLight.style.gridColumn = "1 / 4";
+        this.btnConnectLight.style.gridRow = "1";
+        this.btnConnectLight.style.position = "relative";
+        this.btnConnectLight.style.zIndex = "1";
+
+        const homeBtns = [
+          [this.btnHomeSights, "1"],
+          [this.btnHomeSounds, "2"],
+          [this.btnHomeSpeech, "3"],
+        ];
+
+        for (const [btn, col] of homeBtns) {
           if (!btn) continue;
+          btn.style.gridColumn = col;
+          btn.style.gridRow = "2";
+          btn.style.position = "relative";
+          btn.style.zIndex = "2";
           btn.style.maxWidth = "100%";
-          btn.style.height = "74px";
+          btn.style.height = "70px";
           btn.style.fontSize = "22px";
+          btn.style.pointerEvents = "auto";
         }
 
         this.controls.style.bottom = "14px";
