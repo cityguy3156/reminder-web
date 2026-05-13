@@ -751,8 +751,8 @@ canvas#stimulus {
    MOBILE SIGHTS STACK FIX
 ========================= */
 
-@media (max-width: 700px), (pointer: coarse) {
-  #sightsPanel {
+@media (max-width: 700px) and (orientation: portrait) {
+    #sightsPanel {
     width: calc(100vw - 28px) !important;
     height: calc(100dvh - 110px) !important;
     max-height: calc(100dvh - 110px) !important;
