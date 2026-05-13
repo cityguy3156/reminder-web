@@ -1031,7 +1031,67 @@ this.deviceThing2 = makeThingBlock("VIBE");
 
 this.deviceThingRow.appendChild(this.deviceThing1.wrap);
 this.deviceThingRow.appendChild(this.deviceThing2.wrap);
+// =========================
+// MOBILE SUBMENU LAYOUT
+// =========================
+const applyMobileSubmenuLayout = () => {
+  const mobilePortrait = window.matchMedia("(max-width: 700px) and (orientation: portrait)").matches;
 
+  const panels = [
+    this.sightsPanel,
+    this.soundsPanel,
+    this.speechPanel,
+    this.devicePanel,
+  ].filter(Boolean);
+
+  for (const panel of panels) {
+    if (mobilePortrait) {
+      panel.style.width = "calc(100vw - 28px)";
+      panel.style.height = "calc(100dvh - 110px)";
+      panel.style.maxHeight = "calc(100dvh - 110px)";
+      panel.style.padding = "14px";
+      panel.style.overflowY = "auto";
+      panel.style.gap = "12px";
+    } else {
+      panel.style.width = "min(980px, calc(100vw - 60px))";
+      panel.style.height = "min(760px, calc(100vh - 60px))";
+      panel.style.maxHeight = "";
+      panel.style.padding = "18px";
+      panel.style.overflowY = "";
+      panel.style.gap = "18px";
+    }
+  }
+
+  if (mobilePortrait) {
+    this.tileGrid.style.display = "grid";
+    this.tileGrid.style.gridTemplateColumns = "1fr";
+    this.tileGrid.style.gap = "12px";
+
+    for (const btn of [this.btnEyeTile, this.btnTrigTile]) {
+      btn.style.width = "100%";
+      btn.style.height = "92px";
+    }
+
+    this.speedRow.style.flexWrap = "wrap";
+    this.speedSlider.style.width = "min(280px, 100%)";
+  } else {
+    this.tileGrid.style.display = "";
+    this.tileGrid.style.gridTemplateColumns = "";
+    this.tileGrid.style.gap = "";
+
+    for (const btn of [this.btnEyeTile, this.btnTrigTile]) {
+      btn.style.width = "";
+      btn.style.height = "";
+    }
+
+    this.speedRow.style.flexWrap = "";
+    this.speedSlider.style.width = "420px";
+  }
+};
+
+window.addEventListener("resize", applyMobileSubmenuLayout);
+window.addEventListener("orientationchange", applyMobileSubmenuLayout);
+setTimeout(applyMobileSubmenuLayout, 0);
 // =========================
 // ADD TO PANEL
 // =========================
@@ -1807,7 +1867,10 @@ _cleanupCameraRecording() {
     this.speechPanel.style.display = isSpeech ? "flex" : "none";
     this.devicePanel.style.display = isDevice ? "flex" : "none";
 
-    // 🔥 ADD THIS LINE
+    if (this.btnDonate) {
+      this.btnDonate.style.display = isHome ? "block" : "none";
+    }
+
     this._updateStartButtonState();
   }
   // =========================
