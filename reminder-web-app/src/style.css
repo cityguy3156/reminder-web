@@ -746,3 +746,53 @@ canvas#stimulus {
 }
 
 .wordItem{ color: white; }
+
+/* =========================
+   MOBILE SIGHTS STACK FIX
+========================= */
+
+@media (max-width: 700px), (pointer: coarse) {
+  #sightsPanel {
+    width: calc(100vw - 28px) !important;
+    height: calc(100dvh - 110px) !important;
+    max-height: calc(100dvh - 110px) !important;
+    overflow-y: auto !important;
+  }
+
+  .sightsBody {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    padding-top: 4px !important;
+  }
+
+  .tileGrid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    width: 100% !important;
+  }
+
+  .tileBtn.eyeTile,
+  .tileBtn.trigTile {
+    width: 100% !important;
+    height: 82px !important;
+    min-height: 82px !important;
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 14px !important;
+  }
+
+  .tileIconCircle {
+    display: none !important;
+  }
+
+  .tileLabel {
+    font-size: 22px !important;
+  }
+
+  .wordsCard {
+    width: 100% !important;
+    max-height: 260px !important;
+  }
+}
