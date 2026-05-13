@@ -359,8 +359,7 @@ export class App {
     // MOBILE HOME LAYOUT
     // =========================
     const applyMobileHomeLayout = () => {
-      const mobile = window.matchMedia("(max-width: 700px), (pointer: coarse)").matches;
-
+      const mobile = window.matchMedia("(max-width: 700px) and (orientation: portrait)").matches;
       if (mobile) {
         this.homePanel.style.width = "min(420px, calc(100vw - 28px))";
         this.homePanel.style.gridTemplateColumns = "1fr";
