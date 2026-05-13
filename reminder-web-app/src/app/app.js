@@ -1813,7 +1813,14 @@ _showCameraCompletedMenu() {
   };
 
   this.cameraRecordOverlay.querySelector("#cameraSaveBtn").onclick = async () => {
-    await this._saveCameraRecording();
+    const saved = await this._saveCameraRecording();
+
+    if (saved) {
+      this._discardCameraRecording();
+      this.cameraRecordOverlay.style.display = "none";
+      this._resetCameraOverlay();
+      this._resumeProgramAfterCameraMenu();
+    }
   };
 
   this.cameraRecordOverlay.querySelector("#cameraResumeBtn").onclick = () => {
@@ -1906,7 +1913,8 @@ async _saveCameraRecording() {
         title: "Re-Minder Recording",
         text: "Save this Re-Minder recording.",
       });
-      return;
+
+      return true;
     } catch (err) {
       console.warn("[CAMERA RECORDING] share cancelled/failed:", err);
     }
@@ -1921,6 +1929,7 @@ async _saveCameraRecording() {
   a.remove();
 
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return true;
 }
 
 _discardCameraRecording() {
