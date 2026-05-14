@@ -361,6 +361,11 @@ export class App {
     const applyMobileHomeLayout = () => {
       const isLandscapePhone = window.matchMedia("(max-width: 900px) and (orientation: landscape)").matches;
       const isPortraitPhone = window.matchMedia("(max-width: 900px) and (orientation: portrait)").matches;
+      const isMobile = isLandscapePhone || isPortraitPhone;
+
+      if (this.btnConnectLight) {
+        this.btnConnectLight.style.display = isMobile ? "none" : "block";
+      }
 
       // Reset shared button placement first
       for (const btn of [this.btnConnectLight, this.btnHomeSights, this.btnHomeSounds, this.btnHomeSpeech]) {
@@ -422,11 +427,11 @@ export class App {
         this.homePanel.style.columnGap = "0";
         this.homePanel.style.top = "54%";
 
-        this.btnConnectLight.style.gridColumn = "1";
-        this.btnConnectLight.style.gridRow = "auto";
-        this.btnConnectLight.style.width = "100%";
-        this.btnConnectLight.style.height = "58px";
-        this.btnConnectLight.style.fontSize = "18px";
+        // this.btnConnectLight.style.gridColumn = "1";
+        // this.btnConnectLight.style.gridRow = "auto";
+        // this.btnConnectLight.style.width = "100%";
+        // this.btnConnectLight.style.height = "58px";
+        // this.btnConnectLight.style.fontSize = "18px";
 
         for (const btn of [this.btnHomeSights, this.btnHomeSounds, this.btnHomeSpeech]) {
           btn.style.gridColumn = "1";
@@ -456,10 +461,10 @@ export class App {
       this.homePanel.style.columnGap = "26px";
       this.homePanel.style.top = "50%";
 
-      this.btnConnectLight.style.gridColumn = "1 / 4";
-      this.btnConnectLight.style.gridRow = "1";
-      this.btnConnectLight.style.height = "86px";
-      this.btnConnectLight.style.fontSize = "22px";
+      // this.btnConnectLight.style.gridColumn = "1 / 4";
+      // this.btnConnectLight.style.gridRow = "1";
+      // this.btnConnectLight.style.height = "86px";
+      // this.btnConnectLight.style.fontSize = "22px";
 
       for (const btn of [this.btnHomeSights, this.btnHomeSounds, this.btnHomeSpeech]) {
         btn.style.gridRow = "2";
