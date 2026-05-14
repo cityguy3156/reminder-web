@@ -799,15 +799,18 @@ canvas#stimulus {
 /* =========================
    MOBILE SOUNDS SCROLL FIX
 ========================= */
-
 @media (max-width: 900px) {
-  #soundsPanel {
+  #soundsPanel,
+  #speechPanel {
+    width: calc(100vw - 28px) !important;
+    height: calc(100dvh - 110px) !important;
+    max-height: calc(100dvh - 110px) !important;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
-    max-height: calc(100dvh - 90px) !important;
   }
 
-  #soundsPanel .soundCard {
+  #soundsPanel > *,
+  #speechPanel > * {
     flex-shrink: 0 !important;
   }
 }

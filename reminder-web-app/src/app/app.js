@@ -687,6 +687,7 @@ export class App {
     // SOUNDS PANEL
     // =========================
     this.soundsPanel = document.createElement("div");
+    this.soundsPanel.id = "soundsPanel";
     this.soundsPanel.style.position = "absolute";
     this.soundsPanel.style.left = "50%";
     this.soundsPanel.style.top = "50%";
@@ -863,6 +864,7 @@ export class App {
     // SPEECH PANEL
     // =========================
     this.speechPanel = document.createElement("div");
+    this.speechPanel.id = "speechPanel";
     this.speechPanel.style.position = "absolute";
     this.speechPanel.style.left = "50%";
     this.speechPanel.style.top = "50%";
