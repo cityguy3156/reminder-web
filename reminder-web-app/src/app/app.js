@@ -4402,20 +4402,23 @@ async _primeCameraPermission() {
 
     scheduleNext();
   }
-  _stopBleBlink({ forceOff = true } = {}) {
-    this._bleBlinkGeneration += 1;
-
-    if (this._bleBlinkTimer) {
-      clearTimeout(this._bleBlinkTimer);
-      this._bleBlinkTimer = null;
-    }
-
-    this._bleBlinkOn = false;
-
-    if (forceOff && this._bleConnected) {
-      this._sendBle("OFF").catch((err) => {
-        console.error("BLE OFF send failed:", err);
-      });
-    }
+_stopBleBlink() {
+  // kill timer no matter what
+  if (this._bleBlinkTimer) {
+    clearTimeout(this._bleBlinkTimer);
+    this._bleBlinkTimer = null;
   }
+
+  // reset state
+  this._bleBlinkOn = false;
+  this._bleLastWantedBlink = false;
+  this._bleBlinkGeneration += 1;
+
+  // ALWAYS force OFF
+  if (this._bleConnected) {
+    this._sendBle("OFF").catch(err => {
+      console.error("BLE OFF failed:", err);
+    });
+  }
+}
 }
