@@ -1096,7 +1096,10 @@ const makeThingBlock = (labelText) => {
   slider2.style.width = "100%";
 
   wrap.appendChild(btn);
-  // wrap.appendChild(slider1);
+
+  if (labelText === "ZAP") {
+    wrap.appendChild(slider1);
+  }
 
   return { wrap, btn, slider1, slider2 };
 };
@@ -1671,6 +1674,10 @@ async _startCameraReminderRecording() {
 
     this._showCameraRecordingBanner();
     this._speakCameraRecordingWarning();
+
+    // VIBE for entire recording
+    this._sendBle("VIBE_HIGH");
+
     this._cameraRecorder.start();
 
     try { clearTimeout(this._cameraTimer); } catch {}
@@ -1720,6 +1727,8 @@ _stopCameraReminderRecording() {
 }
 
 _finishCameraReminderRecording() {
+    this._sendBle("OFF", { force: true });
+
   try { clearTimeout(this._cameraTimer); } catch {}
   try { clearInterval(this._cameraCountdownTimer); } catch {}
 
@@ -2009,6 +2018,7 @@ async _resumeProgramAfterCameraMenu() {
 }
 
 _cleanupCameraRecording() {
+    this._sendBle("OFF", { force: true });
   try { clearTimeout(this._cameraTimer); } catch {}
   try { clearInterval(this._cameraCountdownTimer); } catch {}
 
@@ -2440,30 +2450,37 @@ _cleanupCameraRecording() {
 
       this.deviceBeepBtn.onclick = () => {
         console.log("BEEP CLICKED");
-        this._sendBle("FIND");
+        this._pulseBle("BEEP", 500);
       };
 
-      // 👇 ADD HERE
-      // this.deviceThing1.btn.onclick = () => {
-      //   console.log("ZAP CLICKED");
-      //   this._pulseBle("BLUE", 500);
-      // };
+      this.deviceBeepBtn.onclick = () => {
+        console.log("BEEP CLICKED");
+        this._pulseBle("BEEP", 500);
+      };
+
       this.deviceThing1.btn.onclick = () => {
         console.log("ZAP CLICKED");
+
+        const level = String(this.deviceThing1.slider1.value || "2");
+
+        let cmd = "ZAP_MID";
+        if (level === "1") cmd = "ZAP_LOW";
+        if (level === "2") cmd = "ZAP_MID";
+        if (level === "3") cmd = "ZAP_HIGH";
+
+        console.log("ZAP LEVEL:", level, cmd);
+
         this._flashActionButton(this.deviceThing1.btn, 500, "zap");
-        this._pulseBle("BLUE", 500);
+        this._pulseBle(cmd, 500);
       };
 
-      // this.deviceThing2.btn.onclick = () => {
-      //   console.log("VIBE CLICKED");
-      //   this._pulseBle("VIBE", 500);
-      // };
       this.deviceThing2.btn.onclick = () => {
         console.log("VIBE CLICKED");
+
         this._flashActionButton(this.deviceThing2.btn, 500, "vibe");
-        this._pulseBle("VIBE", 500);
+        this._pulseBle("VIBE_HIGH", 500);
       };
-          
+                
     // Folder uploads for images
     this.imagesFolderInput.onchange = async () => {
       const files = Array.from(this.imagesFolderInput.files || []).filter(f => f.type.startsWith("image/"));
@@ -3007,26 +3024,26 @@ async _primeCameraPermission() {
       showEyesClosedScreen = eyesFail;
 
       // ===== BLE CONTROL =====
-      // Only send while eyes are actually closed
       const pulseActive = performance.now() < (this._blePulseUntil || 0);
 
-      // Only send while eyes are actually closed
       const wantedBlink =
         this.running &&
         this._bleConnected &&
         eyesFail &&
         !pulseActive;
 
-      if (wantedBlink) {
+      // entering fail: send BLUE once
+      if (wantedBlink && !this._bleLastWantedBlink) {
         this._startBleBlink();
-      } else if (this._bleConnected && !pulseActive && this._bleBlinkTimer) {
+      }
+
+      // leaving fail: send OFF once
+      if (!wantedBlink && this._bleLastWantedBlink) {
         this._stopBleBlink({ forceOff: true });
       }
 
-      // Only force OFF when eyes are clearly open again and there is no active pulse.
-      const eyesClearlyOpen = hasFace && eyesOk && !edge.on && !eyesFail;
-
-      if (this._bleConnected && eyesClearlyOpen && !pulseActive && this._bleBlinkTimer) {
+      // safety: if eyes are open, never stay latched on
+      if (this._bleConnected && !wantedBlink && hasFace && eyesOk && this._bleBlinkOn) {
         this._stopBleBlink({ forceOff: true });
       }
 
@@ -3167,6 +3184,10 @@ async _primeCameraPermission() {
       const voices = window.speechSynthesis.getVoices?.() || [];
 
       const preferredVoice =
+        voices.find(v => v.voiceURI === this.speechVoiceURI) ||
+        voices.find(v => (v.lang || "").toLowerCase().startsWith("en") && (v.name || "").toLowerCase().includes("zira")) ||
+        voices.find(v => (v.lang || "").toLowerCase().startsWith("en") && (v.name || "").toLowerCase().includes("jenny")) ||
+        voices.find(v => (v.lang || "").toLowerCase().startsWith("en") && (v.name || "").toLowerCase().includes("aria")) ||
         voices.find(v => (v.lang || "").toLowerCase().startsWith("en") && (v.name || "").toLowerCase().includes("samantha")) ||
         voices.find(v => (v.lang || "").toLowerCase().startsWith("en")) ||
         voices[0] ||
@@ -4256,8 +4277,17 @@ async _primeCameraPermission() {
   // =========================
   // SEND COMMAND
   // =========================
-  async _sendBle(cmd) {
-    if (!this._bleCharacteristic || this._bleBusy) return;
+  async _sendBle(cmd, { force = false } = {}) {
+    if (!this._bleCharacteristic) return false;
+
+    let tries = 0;
+
+    while (this._bleBusy && tries < 20) {
+      await this._sleep(15);
+      tries++;
+    }
+
+    if (this._bleBusy && !force) return false;
 
     this._bleBusy = true;
 
@@ -4269,11 +4299,14 @@ async _primeCameraPermission() {
       } else {
         await this._bleCharacteristic.writeValue(data);
       }
+
+      return true;
     } catch (e) {
       console.warn("[BLE ERROR]", e);
+      return false;
+    } finally {
+      this._bleBusy = false;
     }
-
-    this._bleBusy = false;
   }
 
   async _pulseBle(cmd, duration = 700) {
@@ -4364,61 +4397,39 @@ async _primeCameraPermission() {
   // =========================
   async _startBleBlink() {
     if (!this._bleConnected) return;
-    if (this._bleBlinkTimer) return;
-
-    this._bleBlinkGeneration += 1;
-    const gen = this._bleBlinkGeneration;
+    if (this._bleBlinkOn) return;
 
     this._bleBlinkOn = true;
 
-    try {
-      await this._sendBle("BLUE"); // 🔥 SEND IMMEDIATELY
-    } catch (err) {
-      console.error("Initial BLE send failed:", err);
+    const cmd = this._getBlinkVibeCommand();
+
+    console.log("[BLE BLINK]", cmd);
+
+    await this._sendBle(cmd);
+  }
+  _stopBleBlink({ forceOff = true } = {}) {
+    if (this._bleBlinkTimer) {
+      clearTimeout(this._bleBlinkTimer);
+      this._bleBlinkTimer = null;
     }
 
-    const scheduleNext = () => {
-      if (gen !== this._bleBlinkGeneration) return;
-      if (!this._bleConnected) return;
+    this._bleBlinkOn = false;
+    this._bleLastWantedBlink = false;
 
-      const wait = this._bleBlinkOn ? this._bleOnMs : this._bleOffMs;
+    if (forceOff && this._bleConnected) {
+      console.log("[BLE BLINK] OFF");
 
-      this._bleBlinkTimer = setTimeout(async () => {
-        if (gen !== this._bleBlinkGeneration) return;
-        if (!this._bleConnected) return;
+      this._sendBle("OFF", { force: true });
 
-        this._bleBlinkOn = !this._bleBlinkOn;
-
-        try {
-          await this._sendBle(this._bleBlinkOn ? "BLUE" : "OFF");
-        } catch (err) {
-          console.error("BLE blink send failed:", err);
-        }
-
-        if (gen !== this._bleBlinkGeneration) return;
-        scheduleNext();
-      }, wait);
-    };
-
-    scheduleNext();
+      setTimeout(() => this._sendBle("OFF", { force: true }), 80);
+      setTimeout(() => this._sendBle("OFF", { force: true }), 180);
+    }
   }
-_stopBleBlink() {
-  // kill timer no matter what
-  if (this._bleBlinkTimer) {
-    clearTimeout(this._bleBlinkTimer);
-    this._bleBlinkTimer = null;
-  }
+  _getBlinkVibeCommand() {
+    const level = String(this.deviceThing1?.slider1?.value || "2");
 
-  // reset state
-  this._bleBlinkOn = false;
-  this._bleLastWantedBlink = false;
-  this._bleBlinkGeneration += 1;
-
-  // ALWAYS force OFF
-  if (this._bleConnected) {
-    this._sendBle("OFF").catch(err => {
-      console.error("BLE OFF failed:", err);
-    });
+    if (level === "1") return "ZAP_LOW";
+    if (level === "2") return "ZAP_MID";
+    if (level === "3") return "ZAP_HIGH";
   }
-}
 }
