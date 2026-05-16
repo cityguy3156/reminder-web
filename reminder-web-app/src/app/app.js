@@ -1096,7 +1096,7 @@ const makeThingBlock = (labelText) => {
   slider2.style.width = "100%";
 
   wrap.appendChild(btn);
-  wrap.appendChild(slider1);
+  // wrap.appendChild(slider1);
 
   return { wrap, btn, slider1, slider2 };
 };
