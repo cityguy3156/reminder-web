@@ -1679,7 +1679,7 @@ async _startCameraReminderRecording() {
     this._sendBle("VIBE_HIGH");
 
     this._cameraRecorder.start();
-
+    
     try { clearTimeout(this._cameraTimer); } catch {}
     try { clearInterval(this._cameraCountdownTimer); } catch {}
 
@@ -1713,6 +1713,13 @@ _stopCameraReminderRecording() {
 
   this._cameraTimer = null;
   this._cameraCountdownTimer = null;
+
+  // DONE means all webcam usage stops now.
+  // Recording cleanup will stop _cameraRawStream.
+  // This also stops the eye-tracking webcam if it was active.
+  try { this.vision.stop(); } catch {}
+  this.requireEyesOpen = false;
+  this._visionPausedByCamera = false;
 
   if (this._cameraRecorder && this._cameraRecorder.state === "recording") {
     this._cameraRecorder.stop();
@@ -1845,25 +1852,33 @@ _showCameraCompletedMenu() {
   };
 
   this.cameraRecordOverlay.querySelector("#cameraSaveBtn").onclick = async () => {
+    const btn = this.cameraRecordOverlay.querySelector("#cameraSaveBtn");
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "SAVING...";
+      btn.style.opacity = "0.65";
+    }
+
     const saved = await this._saveCameraRecording();
 
-    if (saved) {
-      this._discardCameraRecording();
-      this.cameraRecordOverlay.style.display = "none";
-      this._resetCameraOverlay();
-      this._resumeProgramAfterCameraMenu();
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = saved ? "SAVED" : "SAVE";
+      btn.style.opacity = "1";
     }
   };
 
-  this.cameraRecordOverlay.querySelector("#cameraResumeBtn").onclick = () => {
+  this.cameraRecordOverlay.querySelector("#cameraResumeBtn").onclick = async () => {
     this._discardCameraRecording();
-    this.cameraRecordOverlay.style.display = "none";
 
-    // IMPORTANT:
-    // Restore original recording overlay HTML
-    this._resetCameraOverlay();
+    const btn = this.cameraRecordOverlay.querySelector("#cameraResumeBtn");
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "LOADING...";
+      btn.style.opacity = "0.65";
+    }
 
-    this._resumeProgramAfterCameraMenu();
+    await this._resumeProgramAfterCameraMenu();
   };
 }
 _resetCameraOverlay() {
@@ -1931,20 +1946,31 @@ _cameraMenuBtnStyle() {
 }
 
 async _saveCameraRecording() {
-  if (!this._cameraBlob) return;
+  if (!this._cameraBlob) return false;
 
   const extension = this._cameraBlob.type.includes("mp4") ? "mp4" : "webm";
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
   const filename = `reminder-recording-${timestamp}.${extension}`;
 
-  this._restoreFullscreenAfterCameraMenu = !!document.fullscreenElement;
+  const isMobile =
+    /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+    window.matchMedia("(pointer: coarse)").matches;
 
-  try {
-    if (document.fullscreenElement) {
-      await document.exitFullscreen();
-    }
-  } catch {}
+  // DESKTOP: plain simple download. No share sheet.
+  if (!isMobile) {
+    const url = URL.createObjectURL(this._cameraBlob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
 
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return true;
+  }
+
+  // MOBILE: keep your share/save behavior.
   const file = new File([this._cameraBlob], filename, {
     type: this._cameraBlob.type || "video/mp4",
   });
@@ -1967,6 +1993,7 @@ async _saveCameraRecording() {
     }
   }
 
+  // Mobile fallback if share is unavailable/cancelled.
   const url = URL.createObjectURL(this._cameraBlob);
   const a = document.createElement("a");
   a.href = url;
@@ -2002,25 +2029,52 @@ async _resumeProgramAfterCameraMenu() {
   if (!this._pausedByCameraMenu) return;
 
   this._pausedByCameraMenu = false;
-  this.running = true;
-  if (this._restoreFullscreenAfterCameraMenu) {
-    this._restoreFullscreenAfterCameraMenu = false;
-    try { await this._ensureFullscreen(); } catch {}
-  }
 
-  if (this._visionPausedByCamera) {
-    this.requireEyesOpen = true;
-    this._visionPausedByCamera = false;
-    this._eyeGraceUntil = performance.now() + this.eyeGraceMs;
+  const eyeTrackingSelected = this.btnEyeTile?.classList.contains("isOn");
+  this.requireEyesOpen = eyeTrackingSelected;
+  this._visionError = "";
+
+  // Keep the completed menu visible while the webcam boots.
+  if (eyeTrackingSelected) {
+    this._eyeGraceUntil = performance.now() + this.eyeGraceMs + 1000;
 
     try {
       await this.vision.start();
       this._visionError = "";
     } catch (e) {
       this._visionError = String(e?.message || e);
-      console.warn("Vision restart after camera recording failed:", e);
+      console.warn("Vision restart before resume failed:", e);
     }
+  } else {
+    try { this.vision.stop(); } catch {}
   }
+
+  // Now that webcam startup is done, hide the completed menu.
+  if (this.cameraRecordOverlay) {
+    this.cameraRecordOverlay.style.display = "none";
+    this._resetCameraOverlay();
+  }
+
+  if (this._restoreFullscreenAfterCameraMenu) {
+    this._restoreFullscreenAfterCameraMenu = false;
+    try { await this._ensureFullscreen(); } catch {}
+  }
+
+  const now = performance.now();
+
+  this.running = true;
+  this._frames = 0;
+
+  // Start images AFTER webcam is ready.
+  this.ui.startSlideshow(now);
+
+  try {
+    this.stimulus.render({
+      img: this.ui.currentImage(),
+      eyesClosed: false,
+      overlayText: null,
+    });
+  } catch {}
 
   try { this._startAllSounds(); } catch {}
   try { this._startPrime(); } catch {}
@@ -2029,6 +2083,8 @@ async _resumeProgramAfterCameraMenu() {
   if (this.speechMode === "repeat") {
     try { this._startRepeatGameLoop(); } catch {}
   }
+
+  this._eyeGraceUntil = performance.now() + this.eyeGraceMs;
 }
 
 _cleanupCameraRecording() {
@@ -2892,13 +2948,21 @@ async _primeCameraPermission() {
     this.ui.startSlideshow(performance.now());
 
     try { await this.mic.start(); } catch (e) { console.warn("Mic start failed:", e); }
+    // Eye Tracking tile is always the source of truth.
+    this.requireEyesOpen = this.btnEyeTile?.classList.contains("isOn");
+
     if (this.requireEyesOpen) {
-      try { await this.vision.start(); } catch (e) {
-      this._visionError = String(e?.message || e);
-        console.warn("Vision start failed:", e);
+      try {
+        await this.vision.start();
+        this._visionError = "";
+        this._eyeGraceUntil = performance.now() + this.eyeGraceMs;
+      } catch (e) {
+        this._visionError = String(e?.message || e);
       }
     } else {
-      try { this.vision.stop(); } catch {}
+      try {
+        this.vision.stop();
+      } catch {}
     }
 
     try { this.stimulus.resize(); } catch {}
