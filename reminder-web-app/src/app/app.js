@@ -1683,15 +1683,8 @@ async _startCameraReminderRecording() {
     try { clearTimeout(this._cameraTimer); } catch {}
     try { clearInterval(this._cameraCountdownTimer); } catch {}
 
-    this._cameraCountdownTimer = setInterval(() => {
-      this._cameraSecondsLeft -= 1;
-      const timer = this.cameraRecordOverlay?.querySelector("#cameraRecordTimer");
-      if (timer) timer.textContent = String(Math.max(0, this._cameraSecondsLeft));
-    }, 1000);
-
-    this._cameraTimer = setTimeout(() => {
-      this._stopCameraReminderRecording();
-    }, 15000);
+    this._cameraTimer = null;
+    this._cameraCountdownTimer = null;
 
   } catch (err) {
     console.error("[CAMERA RECORDING] failed:", err);
@@ -1776,17 +1769,15 @@ _finishCameraReminderRecording() {
 
 _showCameraRecordingBanner() {
   if (!this.cameraRecordOverlay) return;
+
   this._resetCameraOverlay();
   this.cameraRecordOverlay.style.display = "flex";
   this.cameraRecordOverlay.style.background = "rgba(0,0,0,0.15)";
 
-  const title = this.cameraRecordOverlay.querySelector("#cameraRecordTitle");
-  const sub = this.cameraRecordOverlay.querySelector("#cameraRecordSub");
-  const timer = this.cameraRecordOverlay.querySelector("#cameraRecordTimer");
-
-  if (title) title.textContent = "● RECORDING";
-  if (sub) sub.textContent = "Camera is recording";
-  if (timer) timer.textContent = "15";
+  const preview = this.cameraRecordOverlay.querySelector("#cameraLivePreview");
+  if (preview && this._cameraRawStream) {
+    preview.srcObject = this._cameraRawStream;
+  }
 }
 
 _showCameraCompletedMenu() {
@@ -1879,36 +1870,51 @@ _resetCameraOverlay() {
   this.cameraRecordOverlay.innerHTML = `
     <div style="
       text-align:center;
-      padding:34px 42px;
+      width:min(900px, calc(100vw - 40px));
+      padding:24px;
       border-radius:22px;
       background:rgba(0,0,0,0.82);
       border:2px solid rgba(255,255,255,0.25);
       box-shadow:0 20px 70px rgba(0,0,0,0.55);
     ">
-      <div id="cameraRecordTitle" style="
-        font-size:54px;
-        font-weight:1000;
-      ">
-        ● RECORDING
-      </div>
+      <div id="cameraRecordTitle" style="font-size:46px; font-weight:1000;">● RECORDING</div>
+      <div id="cameraRecordSub" style="font-size:22px; font-weight:800; margin-top:10px;">Camera is recording</div>
 
-      <div id="cameraRecordSub" style="
-        font-size:24px;
-        font-weight:800;
-        margin-top:12px;
-      ">
-        Camera is recording
-      </div>
+      <video id="cameraLivePreview" autoplay muted playsinline style="
+        display:block;
+        width:min(720px, calc(100vw - 80px));
+        max-height:52vh;
+        margin:18px auto 0;
+        border-radius:18px;
+        background:black;
+        object-fit:contain;
+        border:2px solid rgba(255,255,255,0.25);
+      "></video>
 
-      <div id="cameraRecordTimer" style="
-        font-size:46px;
+      <button id="cameraDoneBtn" style="
+        margin-top:22px;
+        width:220px;
+        height:72px;
+        border-radius:16px;
+        border:2px solid rgba(255,255,255,0.25);
+        background:#b00000;
+        color:white;
+        font-size:30px;
         font-weight:1000;
-        margin-top:18px;
-      ">
-        15
-      </div>
+        cursor:pointer;
+      ">DONE</button>
     </div>
   `;
+
+  const doneBtn = this.cameraRecordOverlay.querySelector("#cameraDoneBtn");
+  if (doneBtn) {
+    doneBtn.onclick = () => this._stopCameraReminderRecording();
+  }
+
+  const preview = this.cameraRecordOverlay.querySelector("#cameraLivePreview");
+  if (preview && this._cameraRawStream) {
+    preview.srcObject = this._cameraRawStream;
+  }
 }
 _cameraMenuBtnStyle() {
   return `
@@ -2006,6 +2012,14 @@ async _resumeProgramAfterCameraMenu() {
     this.requireEyesOpen = true;
     this._visionPausedByCamera = false;
     this._eyeGraceUntil = performance.now() + this.eyeGraceMs;
+
+    try {
+      await this.vision.start();
+      this._visionError = "";
+    } catch (e) {
+      this._visionError = String(e?.message || e);
+      console.warn("Vision restart after camera recording failed:", e);
+    }
   }
 
   try { this._startAllSounds(); } catch {}
