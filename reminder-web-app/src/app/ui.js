@@ -13,7 +13,7 @@ export class UiState {
     this.everyNImages = 7; // flash after every 7 images
     this._imagesSinceFlash = 0;
     this.triggerTotalMs = 100;    // total flash length (ms)
-    this.words = ["LOVE", "OBEY", "BE LOYAL", "SUFFER FOR HER", "WORSHIP HER FEET"];
+    this.words = [];
 
     // Flash runtime
     this._flashActive = false;

@@ -181,7 +181,7 @@ export class App {
     // =========================
     this._loopAudios = [];
     // Spoken loop phrases
-    this.soundPhrases =  ["LOVE", "OBEY", "BE LOYAL", "SUFFER FOR HER", "WORSHIP HER FEET"];
+    this.soundPhrases =  [];
     this._soundPhraseLoopToken = 0;
     this._soundPhraseIndex = 0;
     this._soundPhraseGapMs = 750;    
