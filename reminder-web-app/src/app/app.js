@@ -70,10 +70,10 @@ export class App {
     });
 
     this.bannerImg = document.createElement("img");
-    this.bannerImg.src = "/Mask.png"; // put brand.png in /public
+    this.bannerImg.src = "/Eye.png"; // put brand.png in /public
     this.bannerImg.alt = "The-Reminder";
     Object.assign(this.bannerImg.style, {
-      height: "clamp(80px, 18vh, 160px)",
+      height: "clamp(80px, 28vh, 300px)",
       maxWidth: "80vw",
       zIndex: "0",
       objectFit: "contain",
@@ -364,7 +364,7 @@ export class App {
       const isMobile = isLandscapePhone || isPortraitPhone;
 
       if (this.btnConnectLight) {
-        this.btnConnectLight.style.display = isMobile ? "none" : "block";
+        this.btnConnectLight.style.display = "block";
       }
 
       // Reset shared button placement first
@@ -461,13 +461,24 @@ export class App {
       this.homePanel.style.columnGap = "26px";
       this.homePanel.style.top = "50%";
 
-      // this.btnConnectLight.style.gridColumn = "1 / 4";
-      // this.btnConnectLight.style.gridRow = "1";
-      // this.btnConnectLight.style.height = "86px";
-      // this.btnConnectLight.style.fontSize = "22px";
+      this.btnConnectLight.style.display = "block";
+      this.btnConnectLight.style.gridColumn = "1 / 4";
+      this.btnConnectLight.style.gridRow = "1";
+      this.btnConnectLight.style.width = "100%";
+      this.btnConnectLight.style.maxWidth = "100%";
+      this.btnConnectLight.style.height = "86px";
+      this.btnConnectLight.style.fontSize = "22px";
 
-      for (const btn of [this.btnHomeSights, this.btnHomeSounds, this.btnHomeSpeech]) {
+      const homeButtons = [
+        [this.btnHomeSights, "1"],
+        [this.btnHomeSounds, "2"],
+        [this.btnHomeSpeech, "3"],
+      ];
+
+      for (const [btn, col] of homeButtons) {
+        btn.style.gridColumn = col;
         btn.style.gridRow = "2";
+        btn.style.width = "100%";
         btn.style.maxWidth = "220px";
         btn.style.height = "210px";
         btn.style.fontSize = "22px";
@@ -480,9 +491,6 @@ export class App {
     };
     window.addEventListener("resize", applyMobileHomeLayout);
     window.addEventListener("orientationchange", applyMobileHomeLayout);
-    setTimeout(applyMobileHomeLayout, 0);
-
-    window.addEventListener("resize", applyMobileHomeLayout);
     setTimeout(applyMobileHomeLayout, 0);
 
     this.btnHomeSights = mkTile("Sights");
@@ -2385,7 +2393,7 @@ _cleanupCameraRecording() {
     // BRAND BANNER (top center)
     // =========================
     this.bannerImg = document.createElement("img");
-    this.bannerImg.src = "/Mask.png";        // must be in /public
+    this.bannerImg.src = "/Eye.png";        // must be in /public
     this.bannerImg.alt = "The-Reminder";
     Object.assign(this.bannerImg.style, {
       height: "90px",
