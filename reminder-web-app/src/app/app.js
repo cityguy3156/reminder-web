@@ -322,7 +322,7 @@ export class App {
     };
     
     this.btnConnectLight = document.createElement("button");
-    this.btnConnectLight.textContent = "ADD SHOCK DEVICE";
+    this.btnConnectLight.textContent = "ADD DEVICE";
     this.btnConnectLight.style.background = "#1f6feb"; // GitHub blue
     this.btnConnectLight.style.color = "white";
     this.btnConnectLight.style.border = "none";
